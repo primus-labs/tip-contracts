@@ -10,7 +10,7 @@ struct TipToken {
 }
 
 struct TipRecipient {
-    // The platform of the account. 
+    // The platform of the account.
     string idSource;
     // The unique identifier of the account.
     string id;

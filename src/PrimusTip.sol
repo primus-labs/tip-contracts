@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.20;
 
-import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {TipRecipient} from "./types/Common.sol";
 
 /**
@@ -25,7 +25,5 @@ contract PrimusTip is OwnableUpgradeable {
      * @param token The tip token.
      * @param recipient The recipient informations include the identifier of the account and the platform.
      */
-    function tip(string calldata token, TipRecipient calldata recipient) external payable {
-
-    }
+    function tip(string calldata token, TipRecipient calldata recipient) external payable {}
 }
