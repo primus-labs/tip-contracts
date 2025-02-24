@@ -3,11 +3,11 @@
 pragma solidity ^0.8.20;
 
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {TipRecipient} from "./types/Common.sol";
+import {TipRecipientReq, TipRecipient} from "./types/Common.sol";
 
 /**
  * @dev The Primus Tip contract is used to manage users’ tip funds.
- *      Tippers can lock money in contracts, and recipients can claim the tip funds after verifying their identities.
+ *      Tippers can lock funds in contracts, and recipients can claim the tip funds after verifying their identities.
  */
 contract PrimusTip is OwnableUpgradeable {
     /**
@@ -21,9 +21,24 @@ contract PrimusTip is OwnableUpgradeable {
 
     /**
      * @dev Tipper tip the token to the recipient.
-     *      Tipper tip the native token when the token param equals to native.
+     *      Tipper can tip erc20, NFT and native token.
+     *      Tipper tip the native token when the token.tokenName equals to native.
      * @param token The tip token.
-     * @param recipient The recipient informations include the identifier of the account and the platform.
+     * @param recipient The recipient informations.
      */
-    function tip(string calldata token, TipRecipient calldata recipient) external payable {}
+    function tip(TipToken calldata token, TipRecipientReq calldata recipient) external payable {}
+
+    /**
+     * @dev Tipper tip the token to the batch recipients.
+     *      Tipper can tip erc20, NFT and native token.
+     *      Tipper tip the native token when the token.tokenName equals to native.
+     * @param token The tip token.
+     * @param recipient The recipients informations.
+     */
+    function tipBatch(TipToken calldata token, TipRecipientReq[] calldata recipients) external payable {}
+
+    /**
+     * @dev Recipient claims the tip tokens.
+     */
+    function claimById(TipRecipient calldata recipient, ) external payable {}
 }
