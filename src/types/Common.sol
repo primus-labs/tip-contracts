@@ -7,15 +7,11 @@ struct TipToken {
     string tokenType;
     // Token Address.
     address tokenAddress;
-    // Token Name.
-    address tokenName;
 }
 
 struct TipRecipientReq {
-    // The platform of the account.
-    string idSource;
-    // The unique identifier of the account.
-    string id;
+    // The tip recipient.
+    TipRecipient tipRecipient;
     // The amount of token.
     uint256 amount;
 }
@@ -25,4 +21,11 @@ struct TipRecipient {
     string idSource;
     // The unique identifier of the account.
     string id;
+}
+
+struct TipRecord {
+    TipRecipient tipRecipient;
+    uint256 value;
+    uint256 timestamp;
+    TipToken tipToken;
 }
