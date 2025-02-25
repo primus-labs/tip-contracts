@@ -7,6 +7,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IPrimusZKTLS, Attestation } from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
 import {TipToken, TipRecipientInfo, TipRecipient, TipRecord} from "./types/Common.sol";
 import "./utils/StringUtils.sol";
+import "./utils/JsonParser.sol";
 
 /**
  * @dev The Primus Tip contract is used to manage users’ tip funds.
@@ -14,8 +15,10 @@ import "./utils/StringUtils.sol";
  */
 contract PrimusTip is OwnableUpgradeable {
     using StringUtils for string;
+    using JsonParser for string;
 
-    event TipEvent(address indexed tipper, string idSource, string id);
+    event TipEvent(string idSource, string id);
+    event ClaimEvent(address indexed recipient, address tokenAddr, uint256 amount);
 
     mapping(string => mapping(string => TipRecord[])) private _tipRecords;
     // IPrimusZKTLS contract
@@ -60,7 +63,7 @@ contract PrimusTip is OwnableUpgradeable {
             timestamp: block.timestamp
         });
         _tipRecords[recipient.idSource][recipient.id].push(tipRecord);
-        emit TipEvent(msg.sender, recipient.idSource, recipient.id);
+        emit TipEvent(recipient.idSource, recipient.id);
     }
 
     /**
@@ -96,24 +99,41 @@ contract PrimusTip is OwnableUpgradeable {
                 timestamp: block.timestamp
             });
             _tipRecords[recipients[i].idSource][recipients[i].id].push(tipRecord);
-            emit TipEvent(msg.sender, recipients[i].idSource, recipients[i].id);
+            emit TipEvent(recipients[i].idSource, recipients[i].id);
         }
     }
 
     /**
-     * @dev Recipient claims the tip tokens by id source and tip tokens.
-     */
-    function claimBySourceAndToken(string calldata idSource, Attestation calldata att, TipToken[] calldata token, address to) external payable {}
-
-    /**
      * @dev Recipient claims the tip tokens by the id source.
      */
-    function claimBySource(string calldata idSource, Attestation calldata att, address to) external payable {}
+    function claimBySource(string calldata idSource, Attestation calldata att) external payable {
+        // TODO: check id source
+        require(att.recipient != address(0), "to addr zero");
+        primusZKTLS.verifyAttestation(att);
+        // TODO: check the content of attestation
+        string memory id = att.data.extractValue(att.reponseResolve[0].keyName);
+        TipRecord[] memory tipRecords = _tipRecords[idSource][id];
+        require(tipRecords.length > 0, "no claim token");
+        delete _tipRecords[idSource][id];
+        for (uint256 i = 0; i <= tipRecords.length; i++) {
+            if (tipRecords[i].tipToken.tokenType.equals("erc20")) {
+                IERC20 tipToken = IERC20(tipRecords[i].tipToken.tokenAddress);
+                bool ret = tipToken.transfer(att.recipient, tipRecords[i].tipRecipientInfo.amount);
+                require(ret, "claim token fail");
+                emit ClaimEvent(att.recipient, tipRecords[i].tipToken.tokenAddress, tipRecords[i].tipRecipientInfo.amount);
+            } else if (tipRecords[i].tipToken.tokenType.equals("native")) {
+                (bool success, ) = att.recipient.call{value: tipRecords[i].tipRecipientInfo.amount}(new bytes(0));
+                require(success, 'claim native fail');
+                emit ClaimEvent(att.recipient, address(0), tipRecords[i].tipRecipientInfo.amount);
+            }
+            // TODO: compute fee
+        }
+    }
 
     /**
      * @dev Recipient claims the tip tokens by id sources.
      */
-    function claimByMultiSource(string[] calldata idSources, Attestation[] calldata att, address to) external payable {}
+    function claimByMultiSource(string[] calldata idSources, Attestation[] calldata att) external payable {}
 
     /**
      * @dev The tipper withdraws tokens that have not been claimed within the specified time period.
