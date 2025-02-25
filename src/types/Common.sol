@@ -9,11 +9,15 @@ struct TipToken {
     address tokenAddress;
 }
 
-struct TipRecipientReq {
-    // The tip recipient.
-    TipRecipient tipRecipient;
-    // The amount of token.
+struct TipRecipientInfo {
+    // The platform of the account.
+    string idSource;
+    // The unique identifier of the account.
+    string id;
+    // The amount of token when token is erc20 and native.
     uint256 amount;
+    // The nft token ids when token is nft.
+    uint256[] nftIds;
 }
 
 struct TipRecipient {
@@ -24,8 +28,12 @@ struct TipRecipient {
 }
 
 struct TipRecord {
-    TipRecipient tipRecipient;
-    uint256 value;
-    uint256 timestamp;
+    // The tip recipient info.
+    TipRecipientInfo tipRecipientInfo;
+    // The tip token.
     TipToken tipToken;
+    // The tipper address.
+    address tipper;
+    // The tip timstamp.
+    uint256 timestamp;
 }

@@ -5,7 +5,7 @@ pragma solidity ^0.8.20;
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IPrimusZKTLS, Attestation } from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
-import {TipToken, TipRecipientReq, TipRecipient, TipRecord} from "./types/Common.sol";
+import {TipToken, TipRecipientInfo, TipRecipient, TipRecord} from "./types/Common.sol";
 import "./utils/StringUtils.sol";
 
 /**
@@ -15,8 +15,9 @@ import "./utils/StringUtils.sol";
 contract PrimusTip is OwnableUpgradeable {
     using StringUtils for string;
 
-    mapping(string => mapping(string => TipRecord)) private attestationsOfAddress;
+    event TipEvent(address indexed tipper, string idSource, string id);
 
+    mapping(string => mapping(string => TipRecord[])) private _tipRecords;
     // IPrimusZKTLS contract
     IPrimusZKTLS public primusZKTLS;
     // claim fee
@@ -39,14 +40,27 @@ contract PrimusTip is OwnableUpgradeable {
      * @param token The tip token.
      * @param recipient The recipient informations.
      */
-    function tip(TipToken calldata token, TipRecipientReq calldata recipient) external payable {
-        require(token.tokenType.equals("erc20") || token.tokenType.equals("native"), "not support token type");
+    function tip(TipToken calldata token, TipRecipientInfo calldata recipient) external payable {
+        require(token.tokenType.equals("erc20") || token.tokenType.equals("native"), "error token type");
+        require(token.tokenAddress != address(0), "error token addr");
+        require(recipient.amount > 0, "amount is zero");
+        require(!recipient.id.equals(""), "id is empty");
+        // TODO: check id source
         if (token.tokenType.equals("erc20")) {
             IERC20 tipToken = IERC20(token.tokenAddress);
             bool ret = tipToken.transferFrom(msg.sender, address(this), recipient.amount);
             require(ret, "transfer token fail");
-            // TODO
+        } else if (token.tokenType.equals("native")) {
+            require(msg.value >= recipient.amount);
         }
+        TipRecord memory tipRecord = TipRecord({
+            tipRecipientInfo: recipient,
+            tipToken: token,
+            tipper: msg.sender,
+            timestamp: block.timestamp
+        });
+        _tipRecords[recipient.idSource][recipient.id].push(tipRecord);
+        emit TipEvent(msg.sender, recipient.idSource, recipient.id);
     }
 
     /**
@@ -56,7 +70,35 @@ contract PrimusTip is OwnableUpgradeable {
      * @param token The tip token.
      * @param recipients The recipients informations.
      */
-    function tipBatch(TipToken calldata token, TipRecipientReq[] calldata recipients) external payable {}
+    function tipBatch(TipToken calldata token, TipRecipientInfo[] calldata recipients) external payable {
+        require(token.tokenType.equals("erc20") || token.tokenType.equals("native"), "error token type");
+        require(token.tokenAddress != address(0), "error token addr");
+        // TODO: check id source
+        uint256 totalAmount = 0;
+        for (uint256 i = 0; i <= recipients.length; i++) {
+            require(!recipients[i].id.equals(""), "one id is empty");
+            totalAmount += recipients[i].amount;
+        }
+        require(totalAmount > 0, "amount is zero");
+        if (token.tokenType.equals("erc20")) {
+            IERC20 tipToken = IERC20(token.tokenAddress);
+            bool ret = tipToken.transferFrom(msg.sender, address(this), totalAmount);
+            require(ret, "transfer token fail");
+        } else if (token.tokenType.equals("native")) {
+            require(msg.value >= totalAmount);
+        }
+
+        for (uint256 i = 0; i <= recipients.length; i++) {
+            TipRecord memory tipRecord = TipRecord({
+                tipRecipientInfo: recipients[i],
+                tipToken: token,
+                tipper: msg.sender,
+                timestamp: block.timestamp
+            });
+            _tipRecords[recipients[i].idSource][recipients[i].id].push(tipRecord);
+            emit TipEvent(msg.sender, recipients[i].idSource, recipients[i].id);
+        }
+    }
 
     /**
      * @dev Recipient claims the tip tokens by id source and tip tokens.
@@ -81,7 +123,9 @@ contract PrimusTip is OwnableUpgradeable {
     /**
      * @dev Get the tip tokens by id and id source of recipient.
      */
-    function getTipTokens(TipRecipient calldata tipRecipient) external view returns (TipToken[] memory token) {}
+    function getTipRecords(TipRecipient calldata tipRecipient) external view returns (TipRecord[] memory) {
+        return _tipRecords[tipRecipient.idSource][tipRecipient.id];
+    }
 
 
     /**
