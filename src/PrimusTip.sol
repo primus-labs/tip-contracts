@@ -5,7 +5,7 @@ pragma solidity ^0.8.20;
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IPrimusZKTLS, Attestation } from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
-import {TipToken, TipRecipientInfo, TipRecipient, TipRecord} from "./types/Common.sol";
+import {TipToken, TipRecipientInfo, TipRecipient, TipRecord, IdSource} from "./types/Common.sol";
 import "./utils/StringUtils.sol";
 import "./utils/JsonParser.sol";
 
@@ -19,12 +19,15 @@ contract PrimusTip is OwnableUpgradeable {
 
     event TipEvent(string idSource, string id);
     event ClaimEvent(address indexed recipient, address tokenAddr, uint256 amount);
+    event AddIdSource(string _sourceName, string _url, string _jsonPath);
 
     mapping(string => mapping(string => TipRecord[])) private _tipRecords;
     // IPrimusZKTLS contract
     IPrimusZKTLS public primusZKTLS;
     // claim fee
     uint256 public claimFee;
+    // id attestation source cache 
+    mapping(string => IdSource) public idSourceCache;
 
     /**
      * @dev Initialize function to set the owner of the contract.
@@ -45,11 +48,13 @@ contract PrimusTip is OwnableUpgradeable {
      */
     function tip(TipToken calldata token, TipRecipientInfo calldata recipient) external payable {
         require(token.tokenType.equals("erc20") || token.tokenType.equals("native"), "error token type");
-        require(token.tokenAddress != address(0), "error token addr");
         require(recipient.amount > 0, "amount is zero");
         require(!recipient.id.equals(""), "id is empty");
-        // TODO: check id source
+
+        require(bytes(idSourceCache[recipient.idSource].url).length > 0, "id source not exist");
+
         if (token.tokenType.equals("erc20")) {
+            require(token.tokenAddress != address(0), "error token addr");
             IERC20 tipToken = IERC20(token.tokenAddress);
             bool ret = tipToken.transferFrom(msg.sender, address(this), recipient.amount);
             require(ret, "transfer token fail");
@@ -76,7 +81,11 @@ contract PrimusTip is OwnableUpgradeable {
     function tipBatch(TipToken calldata token, TipRecipientInfo[] calldata recipients) external payable {
         require(token.tokenType.equals("erc20") || token.tokenType.equals("native"), "error token type");
         require(token.tokenAddress != address(0), "error token addr");
-        // TODO: check id source
+        
+        for (uint256 i = 0; i <= recipients.length; i++) {
+            require(bytes(idSourceCache[recipients[i].idSource].url).length > 0, "id source not exist");
+        }
+
         uint256 totalAmount = 0;
         for (uint256 i = 0; i <= recipients.length; i++) {
             require(!recipients[i].id.equals(""), "one id is empty");
@@ -107,10 +116,12 @@ contract PrimusTip is OwnableUpgradeable {
      * @dev Recipient claims the tip tokens by the id source.
      */
     function claimBySource(string calldata idSource, Attestation calldata att) external payable {
-        // TODO: check id source
+        string memory urlStr = idSourceCache[idSource].url;
+        require(bytes(urlStr).length > 0, "id source not exist");
         require(att.recipient != address(0), "to addr zero");
         primusZKTLS.verifyAttestation(att);
-        // TODO: check the content of attestation
+        string memory sourceStr = extractBaseUrl(att.request.url);
+        require(urlStr.equals(sourceStr), "id source not match");
         string memory id = att.data.extractValue(att.reponseResolve[0].keyName);
         TipRecord[] memory tipRecords = _tipRecords[idSource][id];
         require(tipRecords.length > 0, "no claim token");
@@ -151,7 +162,29 @@ contract PrimusTip is OwnableUpgradeable {
     /**
      * @dev Add the id attestation source.
      */
-    function addIdSource() external onlyOwner {}
+    function addIdSource(string memory _sourceName, string memory _url, string memory _jsonPath) external onlyOwner {
+        idSourceCache[_sourceName] = IdSource({
+            url: _url,
+            jsonPath: _jsonPath
+        });
+        emit AddIdSource(_sourceName, _url, _jsonPath);
+    }
+
+    /**
+     * 
+     * @dev Add the id attestation source in batch.
+    */
+    function addBatchIdSource(string[] memory _sourceName, string[] memory _url, string[] memory _jsonPath) external onlyOwner {
+        require(_sourceName.length == _url.length && _url.length == _jsonPath.length, "length not match");
+        for (uint256 i = 0; i < _sourceName.length; i++) {
+            idSourceCache[_sourceName[i]] = IdSource({
+                url: _url[i],
+                jsonPath: _jsonPath[i]
+            });
+            emit AddIdSource(_sourceName[i], _url[i], _jsonPath[i]);
+        }
+    }
+
 
     /**
      *  @dev set IPrimusZKTLS contract instance
@@ -167,5 +200,26 @@ contract PrimusTip is OwnableUpgradeable {
      */
     function setClaimFee(uint256 claimFee_) public onlyOwner {
         claimFee = claimFee_;
+    }
+
+     /**
+     * @dev Extract the base URL (ignoring query parameters)
+     * @param url The full URL
+     * @return The base URL without query parameters
+     */
+    function extractBaseUrl(string memory url) internal pure returns (string memory) {
+        bytes memory urlBytes = bytes(url);
+        uint256 queryStart = urlBytes.length;
+        for (uint256 i = 0; i < urlBytes.length; i++) {
+            if (urlBytes[i] == "?") {
+                queryStart = i;
+                break;
+            }
+        }
+        bytes memory baseUrlBytes = new bytes(queryStart);
+        for (uint256 i = 0; i < queryStart; i++) {
+            baseUrlBytes[i] = urlBytes[i];
+        }
+        return string(baseUrlBytes);
     }
 }

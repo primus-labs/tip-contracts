@@ -37,3 +37,10 @@ struct TipRecord {
     // The tip timstamp.
     uint256 timestamp;
 }
+
+struct IdSource {
+    // The url of the source.
+    string url;
+    // The json path of the account.
+    string jsonPath;
+}
