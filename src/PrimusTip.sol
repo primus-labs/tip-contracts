@@ -8,7 +8,6 @@ import { IPrimusZKTLS, Attestation } from "@primuslabs/zktls-contracts/src/IPrim
 import {TipToken, TipRecipientInfo, TipRecipient, TipRecord, IdSource} from "./types/Common.sol";
 import "./utils/StringUtils.sol";
 import "./utils/JsonParser.sol";
-import "forge-std/Test.sol";
 
 /**
  * @dev The Primus Tip contract is used to manage users’ tip funds.

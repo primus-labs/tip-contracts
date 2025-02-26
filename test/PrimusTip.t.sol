@@ -17,7 +17,9 @@ import {
 contract ERC20Mock is IERC20 {
     mapping(address => uint256) public balanceOf;
     mapping(address => mapping(address => uint256)) public allowance;
-
+    function mint(address to, uint256 amount) external {
+        balanceOf[to] += amount;
+    }
     function transfer(address to, uint256 amount) external returns (bool) {
         balanceOf[msg.sender] -= amount;
         balanceOf[to] += amount;
@@ -55,6 +57,7 @@ contract PrimusTipTest is Test {
         primusTip.initialize(owner, IPrimusZKTLS(address(0)));
         ERC20Mock token = new ERC20Mock();
         erc20Token = address(token);
+        token.mint(tipper, 1000000); 
     }
 
     function testTipERC20() public {
