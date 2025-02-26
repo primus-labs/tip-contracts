@@ -14,6 +14,34 @@ import {
     Attestor,
     IPrimusZKTLS
 } from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
+contract ERC20Mock is IERC20 {
+    mapping(address => uint256) public balanceOf;
+    mapping(address => mapping(address => uint256)) public allowance;
+
+    function transfer(address to, uint256 amount) external returns (bool) {
+        balanceOf[msg.sender] -= amount;
+        balanceOf[to] += amount;
+        return true;
+    }
+
+    function approve(address spender, uint256 amount) external returns (bool) {
+        allowance[msg.sender][spender] = amount;
+        return true;
+    }
+
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) external returns (bool) {
+        allowance[from][msg.sender] -= amount;
+        balanceOf[from] -= amount;
+        balanceOf[to] += amount;
+        return true;
+    }
+
+    function totalSupply() external view override returns (uint256) {}
+}
 
 contract PrimusTipTest is Test {
     PrimusTip public primusTip;
@@ -25,6 +53,8 @@ contract PrimusTipTest is Test {
     function setUp() public {
         primusTip = new PrimusTip();
         primusTip.initialize(owner, IPrimusZKTLS(address(0)));
+        ERC20Mock token = new ERC20Mock();
+        erc20Token = address(token);
     }
 
     function testTipERC20() public {
@@ -35,16 +65,21 @@ contract PrimusTipTest is Test {
 
         uint256[] memory nftIds = new uint256[](0);
         TipRecipientInfo memory recipientInfo = TipRecipientInfo({
-            idSource: "twitter",
+            idSource: "tiktok",
             id: "user123",
             amount: 1000,
             nftIds: nftIds 
         });
+        vm.startPrank(owner);
+        primusTip.addIdSource("tiktok", "https://www.tiktok.com/passport/web/account/info/", "$.data.username");
+        vm.stopPrank();
 
-        primusTip.addIdSource("twitter", "https://api.twitter.com", "$.id");
-        
         vm.startPrank(tipper);
+        console.log("tipper approve");
+        IERC20(erc20Token).approve(address(primusTip), recipientInfo.amount);
+        console.log("tipper tip");
         primusTip.tip(token, recipientInfo);
+        console.log("tipper tip finisned");
         vm.stopPrank();
     }
 
@@ -63,9 +98,9 @@ contract PrimusTipTest is Test {
             amount: 1 ether,
             nftIds: nftIds
         });
-
+        vm.startPrank(owner);
         primusTip.addIdSource(idSource, "https://www.tiktok.com/passport/web/account/info/", "$.data.username");
-        
+        vm.stopPrank();
         vm.deal(tipper, 10 ether);
         vm.startPrank(tipper);
         primusTip.tip{value: 1 ether}(token, recipientInfo);

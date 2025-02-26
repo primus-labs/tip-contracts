@@ -8,6 +8,7 @@ import { IPrimusZKTLS, Attestation } from "@primuslabs/zktls-contracts/src/IPrim
 import {TipToken, TipRecipientInfo, TipRecipient, TipRecord, IdSource} from "./types/Common.sol";
 import "./utils/StringUtils.sol";
 import "./utils/JsonParser.sol";
+import "forge-std/Test.sol";
 
 /**
  * @dev The Primus Tip contract is used to manage users’ tip funds.
@@ -52,7 +53,6 @@ contract PrimusTip is OwnableUpgradeable {
         require(!recipient.id.equals(""), "id is empty");
 
         require(bytes(idSourceCache[recipient.idSource].url).length > 0, "id source not exist");
-
         if (token.tokenType.equals("erc20")) {
             require(token.tokenAddress != address(0), "error token addr");
             IERC20 tipToken = IERC20(token.tokenAddress);
@@ -60,6 +60,9 @@ contract PrimusTip is OwnableUpgradeable {
             require(ret, "transfer token fail");
         } else if (token.tokenType.equals("native")) {
             require(msg.value >= recipient.amount);
+            if (msg.value > recipient.amount) {
+                payable(msg.sender).transfer(msg.value - recipient.amount);
+            }
         }
         TipRecord memory tipRecord = TipRecord({
             tipRecipientInfo: recipient,
@@ -82,12 +85,12 @@ contract PrimusTip is OwnableUpgradeable {
         require(token.tokenType.equals("erc20") || token.tokenType.equals("native"), "error token type");
         require(token.tokenAddress != address(0), "error token addr");
         
-        for (uint256 i = 0; i <= recipients.length; i++) {
+        for (uint256 i = 0; i < recipients.length; i++) {
             require(bytes(idSourceCache[recipients[i].idSource].url).length > 0, "id source not exist");
         }
 
         uint256 totalAmount = 0;
-        for (uint256 i = 0; i <= recipients.length; i++) {
+        for (uint256 i = 0; i < recipients.length; i++) {
             require(!recipients[i].id.equals(""), "one id is empty");
             totalAmount += recipients[i].amount;
         }
@@ -100,7 +103,7 @@ contract PrimusTip is OwnableUpgradeable {
             require(msg.value >= totalAmount);
         }
 
-        for (uint256 i = 0; i <= recipients.length; i++) {
+        for (uint256 i = 0; i < recipients.length; i++) {
             TipRecord memory tipRecord = TipRecord({
                 tipRecipientInfo: recipients[i],
                 tipToken: token,
@@ -126,7 +129,7 @@ contract PrimusTip is OwnableUpgradeable {
         TipRecord[] memory tipRecords = _tipRecords[idSource][id];
         require(tipRecords.length > 0, "no claim token");
         delete _tipRecords[idSource][id];
-        for (uint256 i = 0; i <= tipRecords.length; i++) {
+        for (uint256 i = 0; i < tipRecords.length; i++) {
             if (tipRecords[i].tipToken.tokenType.equals("erc20")) {
                 IERC20 tipToken = IERC20(tipRecords[i].tipToken.tokenAddress);
                 bool ret = tipToken.transfer(att.recipient, tipRecords[i].tipRecipientInfo.amount);
