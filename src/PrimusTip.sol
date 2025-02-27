@@ -1,41 +1,76 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.20;
-
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IPrimusZKTLS, Attestation } from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
 import {TipToken, TipRecipientInfo, TipRecipient, TipRecord, IdSource} from "./types/Common.sol";
 import "./utils/StringUtils.sol";
 import "./utils/JsonParser.sol";
+
+import {ReentrancyGuard} from "./utils/ReentrancyGuard.sol";
 /**
  * @dev The Primus Tip contract is used to manage users’ tip funds.
  *      Tippers can lock funds in contracts, and recipients can claim the tip funds after verifying their identities.
  */
-contract PrimusTip is OwnableUpgradeable {
+contract PrimusTip is  Initializable, UUPSUpgradeable, OwnableUpgradeable {
     using StringUtils for string;
     using JsonParser for string;
+    using ReentrancyGuard for ReentrancyGuard.ReentrancyWrapper;
 
     event TipEvent(string idSource, string id);
     event ClaimEvent(address indexed recipient, address tokenAddr, uint256 amount);
     event AddIdSource(string _sourceName, string _url, string _jsonPath);
+    event FeeCollected(address indexed payer, address token, uint256 amount);
+    event WithdrawEvent(address indexed tipper, string idSource, string id, address token, uint256 amount);
 
     mapping(string => mapping(string => TipRecord[])) private _tipRecords;
     // IPrimusZKTLS contract
     IPrimusZKTLS public primusZKTLS;
     // claim fee
     uint256 public claimFee;
+    // withdraw delay
+    uint256 public constant WITHDRAW_DELAY = 30 days;
     // id attestation source cache 
     mapping(string => IdSource) public idSourceCache;
+    mapping(address => bool) public allowedTokens;
+    // ReentrancyGuard instance
+    ReentrancyGuard.ReentrancyWrapper private reentrancy;
+
+    // ReentrancyGuard
+    modifier nonReentrant() {
+        require(!reentrancy.locked, "ReentrancyGuard: reentrant call");
+        reentrancy.locked = true;
+        _;
+        reentrancy.locked = false;
+    }
 
     /**
      * @dev Initialize function to set the owner of the contract.
      *      This function is called during the contract deployment.
      * @param owner The contract owner.
      */
-    function initialize(address owner, IPrimusZKTLS primusZKTLS_) public initializer {
+    function initialize(
+        address owner, 
+        IPrimusZKTLS primusZKTLS_
+    ) public initializer {
         __Ownable_init(owner);
+        __UUPSUpgradeable_init();
         primusZKTLS = primusZKTLS_;
+    }
+
+    /**
+     * @dev Authorize upgrade function to allow the owner to upgrade the contract.
+    */
+    function _authorizeUpgrade(address) internal override onlyOwner {}
+
+    /**
+     * @dev allowToken function to allow the token to be tipped.
+     */
+    function allowToken(address token) external onlyOwner {
+        allowedTokens[token] = true;
     }
 
     /**
@@ -57,7 +92,7 @@ contract PrimusTip is OwnableUpgradeable {
             bool ret = tipToken.transferFrom(msg.sender, address(this), recipient.amount);
             require(ret, "transfer token fail");
         } else if (token.tokenType.equals("native")) {
-            require(msg.value >= recipient.amount);
+            require(msg.value >= recipient.amount,"Insufficient ETH");
             if (msg.value > recipient.amount) {
                 payable(msg.sender).transfer(msg.value - recipient.amount);
             }
@@ -116,42 +151,96 @@ contract PrimusTip is OwnableUpgradeable {
     /**
      * @dev Recipient claims the tip tokens by the id source.
      */
-    function claimBySource(string calldata idSource, Attestation calldata att) external payable {
+    function claimBySource(string calldata idSource, Attestation calldata att) external payable nonReentrant {
+        require(msg.value >= claimFee, "Insufficient fee");
+        if (claimFee > 0) {
+            payable(owner()).transfer(claimFee);
+            emit FeeCollected(msg.sender, address(0), claimFee);
+        }
         string memory urlStr = idSourceCache[idSource].url;
         require(bytes(urlStr).length > 0, "id source not exist");
         require(att.recipient != address(0), "to addr zero");
+
         primusZKTLS.verifyAttestation(att);
         string memory sourceStr = extractBaseUrl(att.request.url);
         require(urlStr.equals(sourceStr), "id source not match");
+
         string memory id = att.data.extractValue(att.reponseResolve[0].keyName);
         TipRecord[] memory tipRecords = _tipRecords[idSource][id];
         require(tipRecords.length > 0, "no claim token");
-        delete _tipRecords[idSource][id];  
         for (uint256 i = 0; i < tipRecords.length; i++) {
-            if (tipRecords[i].tipToken.tokenType.equals("erc20")) {
-                IERC20 tipToken = IERC20(tipRecords[i].tipToken.tokenAddress);
-                bool ret = tipToken.transfer(att.recipient, tipRecords[i].tipRecipientInfo.amount);
-                require(ret, "claim token fail");
-                emit ClaimEvent(att.recipient, tipRecords[i].tipToken.tokenAddress, tipRecords[i].tipRecipientInfo.amount);
-            } else if (tipRecords[i].tipToken.tokenType.equals("native")) {
-                require(address(this).balance >= tipRecords[i].tipRecipientInfo.amount, "Insufficient contract balance");
-                (bool success, ) = att.recipient.call{value: tipRecords[i].tipRecipientInfo.amount}(new bytes(0));
-                require(success, 'claim native fail');
-                emit ClaimEvent(att.recipient, address(0), tipRecords[i].tipRecipientInfo.amount);
+            TipRecord memory record = tipRecords[i];
+            if (record.tipToken.tokenType.equals("erc20")) {
+                IERC20 token = IERC20(record.tipToken.tokenAddress);
+                require(token.transfer(att.recipient, record.tipRecipientInfo.amount), "Transfer failed");
+            } else {
+                (bool success, ) = att.recipient.call{value: record.tipRecipientInfo.amount}("");
+                require(success, "ETH transfer failed");
             }
-            // TODO: compute fee
+            emit ClaimEvent(att.recipient, record.tipToken.tokenAddress, record.tipRecipientInfo.amount);
         }
+        delete _tipRecords[idSource][id];
     }
 
     /**
      * @dev Recipient claims the tip tokens by id sources.
      */
-    function claimByMultiSource(string[] calldata idSources, Attestation[] calldata att) external payable {}
+    function claimByMultiSource(string[] calldata idSources, Attestation[] calldata att) external payable {
+        require(idSources.length == att.length, "length not match");
+        uint256 totalFee;
+        for (uint256 i = 0; i < idSources.length; i++) {
+            string calldata idSource = idSources[i];
+            Attestation calldata attestation = att[i];
+            this.claimBySource(idSource, attestation);
+            totalFee += claimFee;
+        }
+        require(msg.value >= totalFee, "insufficient fee");
+        if (totalFee > 0) {
+            payable(owner()).transfer(totalFee);
+        }
+    }
 
     /**
      * @dev The tipper withdraws tokens that have not been claimed within the specified time period.
      */
-    function tipperWithdraw() external {}
+    function tipperWithdraw(TipRecipient[] calldata recipients, uint256[] calldata recordIndexes, uint256 expireTime) external nonReentrant {
+        require(recipients.length == recordIndexes.length, "length mismatch");
+        require(expireTime >= WITHDRAW_DELAY, "Delay too short");
+        for (uint256 i = 0; i < recipients.length; i++) {
+            TipRecipient calldata recipient = recipients[i];
+            uint256 index = recordIndexes[i];
+            
+            TipRecord[] storage records = _tipRecords[recipient.idSource][recipient.id];
+            require(records.length > 0, "No records");
+            require(index < records.length, "Invalid index");
+            
+            TipRecord storage record = records[index];
+            require(record.tipper == msg.sender, "Not tipper");
+            require(block.timestamp > record.timestamp + expireTime, "Not expired");
+
+            // execute withdraw
+            if (record.tipToken.tokenType.equals("erc20")) {
+                IERC20 token = IERC20(record.tipToken.tokenAddress);
+                require(token.transfer(msg.sender, record.tipRecipientInfo.amount), "Transfer failed");
+            } else if (record.tipToken.tokenType.equals("native")) {
+                payable(msg.sender).transfer(record.tipRecipientInfo.amount);
+            }
+
+            uint256 lastIndex = records.length - 1;
+            if (index != lastIndex) {
+                records[index] = records[lastIndex];
+            }
+            records.pop();
+
+            emit WithdrawEvent(
+                msg.sender,
+                recipient.idSource,
+                recipient.id,
+                record.tipToken.tokenAddress,
+                record.tipRecipientInfo.amount
+            );
+        }  
+    }
 
     /**
      * @dev Get the tip tokens by id and id source of recipient.
@@ -165,6 +254,8 @@ contract PrimusTip is OwnableUpgradeable {
      * @dev Add the id attestation source.
      */
     function addIdSource(string memory _sourceName, string memory _url, string memory _jsonPath) external onlyOwner {
+        require(bytes(_sourceName).length > 0, "Empty source name");
+        require(bytes(idSourceCache[_sourceName].url).length == 0, "Source exists");
         idSourceCache[_sourceName] = IdSource({
             url: _url,
             jsonPath: _jsonPath
