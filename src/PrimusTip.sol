@@ -8,7 +8,6 @@ import { IPrimusZKTLS, Attestation } from "@primuslabs/zktls-contracts/src/IPrim
 import {TipToken, TipRecipientInfo, TipRecipient, TipRecord, IdSource} from "./types/Common.sol";
 import "./utils/StringUtils.sol";
 import "./utils/JsonParser.sol";
-
 /**
  * @dev The Primus Tip contract is used to manage users’ tip funds.
  *      Tippers can lock funds in contracts, and recipients can claim the tip funds after verifying their identities.
@@ -127,7 +126,7 @@ contract PrimusTip is OwnableUpgradeable {
         string memory id = att.data.extractValue(att.reponseResolve[0].keyName);
         TipRecord[] memory tipRecords = _tipRecords[idSource][id];
         require(tipRecords.length > 0, "no claim token");
-        delete _tipRecords[idSource][id];
+        delete _tipRecords[idSource][id];  
         for (uint256 i = 0; i < tipRecords.length; i++) {
             if (tipRecords[i].tipToken.tokenType.equals("erc20")) {
                 IERC20 tipToken = IERC20(tipRecords[i].tipToken.tokenAddress);
@@ -135,6 +134,7 @@ contract PrimusTip is OwnableUpgradeable {
                 require(ret, "claim token fail");
                 emit ClaimEvent(att.recipient, tipRecords[i].tipToken.tokenAddress, tipRecords[i].tipRecipientInfo.amount);
             } else if (tipRecords[i].tipToken.tokenType.equals("native")) {
+                require(address(this).balance >= tipRecords[i].tipRecipientInfo.amount, "Insufficient contract balance");
                 (bool success, ) = att.recipient.call{value: tipRecords[i].tipRecipientInfo.amount}(new bytes(0));
                 require(success, 'claim native fail');
                 emit ClaimEvent(att.recipient, address(0), tipRecords[i].tipRecipientInfo.amount);
