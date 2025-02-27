@@ -22,6 +22,22 @@ $ forge test
 $ forge fmt
 ```
 
+### Deploy & UpgrateAble
+
+```shell
+# Deploy
+forge script script/Deploy.s.sol:DeployScript \
+  --rpc-url $RPC_URL \
+  --private-key $PRIVATE_KEY \
+  --broadcast
+
+# Upgrade
+forge script script/Upgrade.s.sol:UpgradeScript \
+  --rpc-url $RPC_URL \
+  --private-key $PRIVATE_KEY \
+  --broadcast
+```
+
 ### Gas Snapshots
 
 ```shell
