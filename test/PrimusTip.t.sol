@@ -85,11 +85,8 @@ contract PrimusTipTest is Test {
         vm.stopPrank();
 
         vm.startPrank(tipper);
-        console.log("tipper approve");
         IERC20(erc20Token).approve(address(primusTip), recipientInfo.amount);
-        console.log("tipper tip");
         primusTip.tip(token, recipientInfo);
-        console.log("tipper tip finisned");
         vm.stopPrank();
     }
 
