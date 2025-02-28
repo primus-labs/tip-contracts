@@ -51,6 +51,7 @@ contract PrimusZKTLSMock is IPrimusZKTLS {
     }
 }
 contract PrimusTipTest is Test {
+    using StringUtils for string;
     PrimusTip public primusTip;
     PrimusZKTLSMock public primusZKTLS;
     address public owner = address(1);
@@ -268,13 +269,35 @@ contract PrimusTipTest is Test {
 
         _tipForSources(sources, 1 ether);
 
-        vm.deal(recipientAddr, 1 ether);
+        
         vm.prank(recipientAddr);
         primusTip.claimByMultiSource{value: primusTip.claimFee() * 2}(sources, attestations);
 
         assertEq(recipientAddr.balance, 2 ether, "Should receive both tips");
     }
 
+    function _tipForSources(string[] memory sources, uint256 amount) private {
+        TipToken memory token = TipToken("native", address(0));
+    
+        for (uint i = 0; i < sources.length; i++) {
+            string memory userName ;
+            if (sources[i].equals("tiktok")){
+                userName = "fksyuan";
+            }else if (sources[i].equals("x")){
+                userName = "wenjun_yuan1";
+            }
+
+            TipRecipientInfo memory recipient = TipRecipientInfo(
+                sources[i],
+                userName,
+                amount,
+                new uint256[](0)
+            );
+            vm.deal(tipper, amount);
+            vm.prank(tipper);
+            primusTip.tip{value: amount}(token, recipient);
+        }
+    }
 
     // ========== tipBatch  ==========
     function test_TipBatch_Success() public {
@@ -483,21 +506,6 @@ contract PrimusTipTest is Test {
         return (att, idSource, id);
     }
 
-    function _tipForSources(string[] memory sources, uint256 amount) private {
-        TipToken memory token = TipToken("native", address(0));
-    
-        for (uint i = 0; i < sources.length; i++) {
-            TipRecipientInfo memory recipient = TipRecipientInfo(
-                sources[i],
-                "testUser",
-                amount,
-                new uint256[](0)
-            );
-            vm.deal(tipper, amount);
-            vm.prank(tipper);
-            primusTip.tip{value: amount}(token, recipient);
-        }
-    }
 
     function stringToAddress(string memory _addressString) public pure returns (address) {
         bytes memory addressBytes = bytes(_addressString);

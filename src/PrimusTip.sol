@@ -244,25 +244,16 @@ contract PrimusTip is  Initializable, OwnableUpgradeable {
     /**
      * @dev Recipient claims the tip tokens by id sources.
      */
-    function claimByMultiSource(string[] calldata idSources, Attestation[] calldata att) external payable nonReentrant {
+    function claimByMultiSource(string[] calldata idSources, Attestation[] calldata att) external payable  {
         require(idSources.length == att.length, "length not match");
         uint256 totalFee = claimFee * idSources.length;
         _chargeFee(totalFee); 
 
         for (uint256 i = 0; i < idSources.length; i++) {
-            _processClaim(idSources[i], att[i]);
+            claimBySource(idSources[i], att[i]);
         }
     }
 
-    /**
-     * @dev Recipient claims the tip tokens by the id.
-     * @param idSource The id source.
-     * @param att The attestation.
-     */
-    function _processClaim(string calldata idSource, Attestation calldata att) internal {
-        claimBySource(idSource, att);
-    }
-    
     /**
      * @dev The tipper withdraws tokens that have not been claimed within the specified time period.
      */
