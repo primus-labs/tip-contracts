@@ -3,37 +3,47 @@
 pragma solidity ^0.8.20;
 
 import {Script} from "forge-std/Script.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {PrimusTip} from "../src/PrimusTip.sol";
 import "forge-std/Test.sol";
 
 contract DeployScript is Script {
     function run() external {
+        // 1. Get private key
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        //address deployerAddress = vm.addr(deployerPrivateKey);
-        address admin = vm.envAddress("ADMIN_ADDRESS");
+        address deployerAddress = vm.addr(deployerPrivateKey);
+        address feeRecent = vm.envAddress("FEE_RECIPIENT");
         address zktls = vm.envAddress("ZKTLS_ADDRESS");
-        
         vm.startBroadcast(deployerPrivateKey);
 
-        // 1. Deployment of Logic Contracts
-        PrimusTip implementation = new PrimusTip();
-        
-        // 2. Deployment Proxy Contract
-        ERC1967Proxy proxy = new ERC1967Proxy(
-            address(implementation),
-            abi.encodeWithSelector(
-                PrimusTip.initialize.selector,
-                admin,
-                zktls
-            )
+        // 2. Deploy logic contract (implementation)
+        PrimusTip logic = new PrimusTip();
+
+        // 3. Deploy ProxyAdmin
+        ProxyAdmin proxyAdmin = new ProxyAdmin(deployerAddress);
+
+        // 4. Prepare initialization data
+        bytes memory initializeData = abi.encodeWithSelector(
+            PrimusTip.initialize.selector,
+            deployerAddress, // Replace with the actual owner address if needed
+            feeRecent,
+            zktls
         );
 
-        vm.stopBroadcast();
+        // 5. Deploy TransparentUpgradeableProxy
+        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
+            address(logic),
+            address(proxyAdmin),
+            initializeData
+        );
 
-        // Output Deployment Results
-        console.log("Implementation address:", address(implementation));
-        console.log("Proxy address:", address(proxy));
+        // 6. Log contract addresses
+        console.log("Logic Contract Address: ", address(logic));
+        console.log("Proxy Admin Address: ", address(proxyAdmin));
+        console.log("Proxy Contract Address: ", address(proxy));
+
+        vm.stopBroadcast();
     }
 }
 

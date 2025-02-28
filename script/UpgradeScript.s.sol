@@ -6,32 +6,27 @@ import {PrimusTip} from "../src/PrimusTip.sol";
 import "forge-std/Test.sol";
 
 // script/Upgrade.s.sol
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol"; 
+import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 contract UpgradeScript is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        address deployerAddress = vm.addr(deployerPrivateKey);
-        address proxyAddress = vm.envAddress("PROXY_ADDRESS");
-        address zktls = vm.envAddress("ZKTLS_ADDRESS");
-        
         vm.startBroadcast(deployerPrivateKey);
 
-        // Deploy New Version Logic Contracts
-        PrimusTip newImplementation = new PrimusTip();
-        
-        // Initialize Data
-        bytes memory initializeData = abi.encodeWithSelector(
-            PrimusTip.initialize.selector,
-            deployerAddress,// Replace with the actual owner address if needed
-            zktls
-        );
+        // 1. Deploy the new logic contract
+        PrimusTip newLogic = new PrimusTip();
 
-        // Convert to UUPS interface
-        UUPSUpgradeable proxy = UUPSUpgradeable(payable(proxyAddress));
-        
-        // Execute upgrades
-        proxy.upgradeToAndCall(address(newImplementation), initializeData);
+        // 2. Retrieve the ProxyAdmin address and Proxy contract address
+        address proxyAdminAddr = address(0x11111); // Replace with the actual ProxyAdmin address
+        address proxyAddr = address(0x2222);           // Replace with the actual Proxy address
+
+        // 3. Call the upgrade method of ProxyAdmin
+        ProxyAdmin proxyAdmin = ProxyAdmin(proxyAdminAddr);
+        ITransparentUpgradeableProxy proxy = ITransparentUpgradeableProxy(proxyAddr);
+        proxyAdmin.upgradeAndCall(proxy, address(newLogic),"");
+
+        console.log("Upgraded Proxy to New Logic Address: ", address(newLogic));
 
         vm.stopBroadcast();
     }

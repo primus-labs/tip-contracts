@@ -7,12 +7,10 @@ library ReentrancyGuard {
         bool locked;
     }
 
-    function nonReentrant(ReentrancyWrapper storage wrapper) internal {
-        require(!wrapper.locked, "ReentrancyGuard: reentrant call");
-        wrapper.locked = true;
-    }
-
-    function unlock(ReentrancyWrapper storage wrapper) internal {
-        wrapper.locked = false;
+    modifier nonReentrant(ReentrancyWrapper storage guard) {
+        require(!guard.locked, "ReentrancyGuard: reentrant call");
+        guard.locked = true;
+        _;
+        guard.locked = false;
     }
 }
