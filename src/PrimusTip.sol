@@ -269,62 +269,46 @@ contract PrimusTip is  Initializable, OwnableUpgradeable {
     function tipperWithdraw() external nonReentrant {
         require(tipperCache[msg.sender].length > 0, "No pending withdrawals");
 
-        string[] memory pendingKeys = new string[](tipperCache[msg.sender].length);
-        uint256 pendingCount = 0;
+        string[] memory newCache = new string[](tipperCache[msg.sender].length);
+        uint256 newCacheCount = 0;
 
         for (uint256 i = 0; i < tipperCache[msg.sender].length; i++) {
             string memory key = tipperCache[msg.sender][i];
             (string memory idSource, string memory id) = splitKey(key);
             TipRecord[] storage records = _tipRecords[idSource][id];
-        
-            bool hasActiveRecords = false;
 
-            for (uint256 j = records.length; j > 0; ) {
-                uint256 index = j - 1;
-                TipRecord storage record = records[index];
-            
+            uint256 j = records.length;
+            while (j > 0) {
+                j--;
+                TipRecord storage record = records[j];
+
                 if (record.tipper == msg.sender && isExpired(record.timestamp)) {
-                    // Transfer funds
                     uint256 amount = record.tipRecipientInfo.amount;
                     _transferToken(msg.sender, record.tipToken, amount);
                     emit WithdrawEvent(msg.sender, record.tipToken.tokenAddress, amount);
 
-                    // Remove record
-                    if (index != records.length - 1) {
-                        records[index] = records[records.length - 1];
-                    }
+                    // Remove records
+                    records[j] = records[records.length - 1];
                     records.pop();
-                } else {
-                    hasActiveRecords = true; 
                 }
-                j--; 
             }
 
-            // Update cache
-            if (hasActiveRecords) {
-                pendingKeys[pendingCount] = key;
-                pendingCount++;
+            // Only reserved for unexpired records key
+            if (records.length > 0) {
+                newCache[newCacheCount] = key;
+                newCacheCount++;
             } else {
                 delete _tipRecords[idSource][id];
-                _removeCacheKey(msg.sender, key); 
             }
         }
 
-        // Update tipperCache
-        if (pendingCount < tipperCache[msg.sender].length) {
-            tipperCache[msg.sender] = pendingKeys;
+        // update tipperCache
+        assembly {
+            mstore(newCache, newCacheCount) // change newCache array size
         }
+        tipperCache[msg.sender] = newCache;
     }
 
-    function _removeCacheKey(address tipper, string memory key) private {
-        for (uint256 i = 0; i < tipperCache[tipper].length; i++) {
-         if (keccak256(bytes(tipperCache[tipper][i])) == keccak256(bytes(key))) {
-            tipperCache[tipper][i] = tipperCache[tipper][tipperCache[tipper].length - 1];
-            tipperCache[tipper].pop();
-            break;
-         }
-        }
-    }
 
     /**
      * @dev Get the tip tokens by id and id source of recipient.
