@@ -65,7 +65,7 @@ contract PrimusTipTest is Test {
         vm.startPrank(owner);
         primusZKTLS = new PrimusZKTLSMock();
         primusTip = new PrimusTip();
-        primusTip.initialize(owner, feeRecipient, primusZKTLS);
+        primusTip.initialize(owner, primusZKTLS, feeRecipient, 0);
 
         primusTip.addIdSource("tiktok", "https://www.tiktok.com/passport/web/account/info/", "$.data.username");
         primusTip.addIdSource("x", "https://api.x.com/1.1/account/settings.json", "$.screen_name");
@@ -237,7 +237,7 @@ contract PrimusTipTest is Test {
 
         assertEq(IERC20(erc20Token).balanceOf(tipper), 500, "Balance not updated correctly");
 
-        vm.warp(block.timestamp + primusTip.WITHDRAW_DELAY() + 1);
+        vm.warp(block.timestamp + primusTip.withdrawDelay() + 1);
         
         
         vm.prank(tipper);

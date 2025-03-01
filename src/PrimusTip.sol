@@ -2,14 +2,12 @@
 
 pragma solidity ^0.8.20;
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IPrimusZKTLS, Attestation } from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
 import {TipToken, TipRecipientInfo, TipRecipient, TipRecord, IdSource} from "./types/Common.sol";
 import "./utils/StringUtils.sol";
 import "./utils/JsonParser.sol";
-import "forge-std/Test.sol";
 
 import {ReentrancyGuard} from "./utils/ReentrancyGuard.sol";
 /**
@@ -35,9 +33,9 @@ contract PrimusTip is  Initializable, OwnableUpgradeable {
     IPrimusZKTLS public primusZKTLS;
     // claim fee
     uint256 public claimFee;
-    address private feeRecipient;
+    address public feeRecipient;
     // withdraw delay
-    uint256 public WITHDRAW_DELAY = 30 days;
+    uint256 public withdrawDelay = 30 days;
     // id attestation source cache 
     mapping(string => IdSource) public idSourceCache;
     // Tip records by idSource and id
@@ -59,84 +57,20 @@ contract PrimusTip is  Initializable, OwnableUpgradeable {
      * @dev Initialize function to set the owner of the contract.
      *      This function is called during the contract deployment.
      * @param owner The contract owner.
-     * @param _feeRecipient The fee recipient address.
-     * @param _primusZKTLS The IPrimusZKTLS contract address.
+     * @param primusZKTLS_ The IPrimusZKTLS contract address.
+     * @param feeRecipient_ The fee recipient address.
+     * @param claimFee_ The claim fee.
      */
     function initialize(
         address owner,
-        address _feeRecipient, 
-        IPrimusZKTLS _primusZKTLS
+        IPrimusZKTLS primusZKTLS_,
+        address feeRecipient_,
+        uint256 claimFee_
     ) public initializer {
         __Ownable_init(owner);
-        feeRecipient = _feeRecipient;
-        primusZKTLS = _primusZKTLS;
-    }
-
-    /**
-     * 
-     * @dev Set the fee recipient address.
-     * @param newFeeRecipient The fee recipient address.
-    */
-    function setFeeRecipient(address newFeeRecipient) external onlyOwner {
-        emit FeeRecipientChanged(feeRecipient, newFeeRecipient);
-        feeRecipient = newFeeRecipient;
-    }
-
-    /**
-     * @dev set the withdraw delay.
-     * @param delay The withdraw delay Unit should be days.
-    */
-    function setWithdrawDelay(uint256 delay) external onlyOwner {
-        emit WithdrawDelayChanged(WITHDRAW_DELAY, delay);
-        WITHDRAW_DELAY = delay;
-    }
-
-    /**
-     * @dev Transfer the token from the user to the contract.
-     * @param from The token sender.
-     * @param token The tip token.
-     * @param amount The token amount.
-    */
-    function _transferFromUser(address from, TipToken memory token, uint256 amount) internal {
-        if (token.tokenType.equals("erc20")) {
-            IERC20 tipToken = IERC20(token.tokenAddress);
-            uint256 balance = tipToken.balanceOf(from);
-            console.log("transferFromUser:balance=%d, amount=%d", balance, amount);
-            bool ret = tipToken.transferFrom(from, address(this), amount);
-            require(ret, "transfer token fail");
-        } else if (token.tokenType.equals("native")) {
-            console.log("transfer native token:msg.value=%s, amount=%s", msg.value, amount);
-            require(msg.value >= amount, "Insufficient ETH");
-            console.log("transfer native token success:msg.value=%s", msg.value);
-        }
-    }
-
-    /**
-     * @dev Transfer the token from the contract to the user.
-     * @param to The token recipient.
-     * @param token The tip token.
-     * @param amount The token amount.
-    */
-    function _transferToken(address to, TipToken memory token, uint256 amount) internal {
-        if (token.tokenType.equals("erc20")) {
-            IERC20 tipToken = IERC20(token.tokenAddress);
-            require(tipToken.transfer(to, amount), "Transfer failed");
-        } else if (token.tokenType.equals("native")) {
-            (bool success, ) = to.call{value: amount}("");
-            require(success, "ETH transfer failed");
-        }
-    }
-
-    /**
-     * @dev Charge the fee from the user.
-     * @param fee The fee amount.
-    */
-    function _chargeFee(uint256 fee) internal {
-        require(msg.value >= fee, "Insufficient fee");
-        if (fee > 0) {
-            payable(feeRecipient).transfer(fee);
-            emit FeeCollected(msg.sender, address(0), fee);
-        }
+        primusZKTLS = primusZKTLS_;
+        feeRecipient = feeRecipient_;
+        claimFee = claimFee_;
     }
 
     /**
@@ -300,7 +234,6 @@ contract PrimusTip is  Initializable, OwnableUpgradeable {
         tipperCache[msg.sender] = newCache;
     }
 
-
     /**
      * @dev Get the tip tokens by id and id source of recipient.
      */
@@ -323,7 +256,6 @@ contract PrimusTip is  Initializable, OwnableUpgradeable {
     }
 
     /**
-     * 
      * @dev Add the id attestation source in batch.
     */
     function addBatchIdSource(string[] memory _sourceName, string[] memory _url, string[] memory _jsonPath) external onlyOwner {
@@ -337,6 +269,23 @@ contract PrimusTip is  Initializable, OwnableUpgradeable {
         }
     }
 
+    /**
+     * @dev Set the fee recipient address.
+     * @param newFeeRecipient The fee recipient address.
+    */
+    function setFeeRecipient(address newFeeRecipient) external onlyOwner {
+        emit FeeRecipientChanged(feeRecipient, newFeeRecipient);
+        feeRecipient = newFeeRecipient;
+    }
+
+    /**
+     * @dev set the withdraw delay.
+     * @param delay The withdraw delay Unit should be days.
+    */
+    function setWithdrawDelay(uint256 delay) external onlyOwner {
+        emit WithdrawDelayChanged(withdrawDelay, delay);
+        withdrawDelay = delay;
+    }
 
     /**
      *  @dev set IPrimusZKTLS contract instance
@@ -354,6 +303,51 @@ contract PrimusTip is  Initializable, OwnableUpgradeable {
     function setClaimFee(uint256 _claimFee) public onlyOwner {
         claimFee = _claimFee;
         emit ClaimFeeSet(_claimFee);
+    }
+
+
+    /**
+     * @dev Transfer the token from the user to the contract.
+     * @param from The token sender.
+     * @param token The tip token.
+     * @param amount The token amount.
+    */
+    function _transferFromUser(address from, TipToken memory token, uint256 amount) internal {
+        if (token.tokenType.equals("erc20")) {
+            IERC20 tipToken = IERC20(token.tokenAddress);
+            bool ret = tipToken.transferFrom(from, address(this), amount);
+            require(ret, "transfer token fail");
+        } else if (token.tokenType.equals("native")) {
+            require(msg.value >= amount, "Insufficient ETH");
+        }
+    }
+
+    /**
+     * @dev Transfer the token from the contract to the user.
+     * @param to The token recipient.
+     * @param token The tip token.
+     * @param amount The token amount.
+    */
+    function _transferToken(address to, TipToken memory token, uint256 amount) internal {
+        if (token.tokenType.equals("erc20")) {
+            IERC20 tipToken = IERC20(token.tokenAddress);
+            require(tipToken.transfer(to, amount), "Transfer failed");
+        } else if (token.tokenType.equals("native")) {
+            (bool success, ) = to.call{value: amount}("");
+            require(success, "ETH transfer failed");
+        }
+    }
+
+    /**
+     * @dev Charge the fee from the user.
+     * @param fee The fee amount.
+    */
+    function _chargeFee(uint256 fee) internal {
+        require(msg.value >= fee, "Insufficient fee");
+        if (fee > 0) {
+            payable(feeRecipient).transfer(fee);
+            emit FeeCollected(msg.sender, address(0), fee);
+        }
     }
 
      /**
