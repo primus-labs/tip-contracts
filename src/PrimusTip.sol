@@ -6,20 +6,20 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IPrimusZKTLS, Attestation } from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
 import {TipToken, TipRecipientInfo, TipRecipient, TipRecord, IdSource} from "./types/Common.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "./utils/StringUtils.sol";
 import "./utils/JsonParser.sol";
 
-import {ReentrancyGuard} from "./utils/ReentrancyGuard.sol";
+
 /**
  * @dev The Primus Tip contract is used to manage users’ tip funds.
  *      Tippers can lock funds in contracts, and recipients can claim the tip funds after verifying their identities.
  */
-contract PrimusTip is  Initializable, OwnableUpgradeable {
+contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using StringUtils for string;
     using JsonParser for string;
-    using ReentrancyGuard for ReentrancyGuard.ReentrancyWrapper;
 
-    event TipEvent(string idSource, string id);
+    event TipEvent(string idSource, string id, uint256 amount);
     event FeeRecipientChanged(address indexed oldRecipient, address indexed newRecipient);
     event WithdrawDelayChanged(uint256 oldDelay, uint256 newDelay);
     event ClaimEvent(address indexed recipient, address tokenAddr, uint256 amount);
@@ -33,6 +33,7 @@ contract PrimusTip is  Initializable, OwnableUpgradeable {
     IPrimusZKTLS public primusZKTLS;
     // claim fee
     uint256 public claimFee;
+    // fee recipient address
     address public feeRecipient;
     // withdraw delay
     uint256 public withdrawDelay = 30 days;
@@ -42,16 +43,7 @@ contract PrimusTip is  Initializable, OwnableUpgradeable {
     mapping(string => mapping(string => TipRecord[])) private _tipRecords;
     // Tip record by tipper address and id
     mapping(address => string[]) private tipperCache;
-    // ReentrancyGuard instance
-    ReentrancyGuard.ReentrancyWrapper private reentrancy;
-
-    // ReentrancyGuard
-    modifier nonReentrant() {
-        require(!reentrancy.locked, "ReentrancyGuard: reentrant call");
-        reentrancy.locked = true;
-        _;
-        reentrancy.locked = false;
-    }
+  
 
     /**
      * @dev Initialize function to set the owner of the contract.
@@ -86,6 +78,10 @@ contract PrimusTip is  Initializable, OwnableUpgradeable {
         require(!recipient.id.equals(""), "id is empty");
         require(bytes(idSourceCache[recipient.idSource].url).length > 0, "id source not exist");
 
+        if (token.tokenType.equals("erc20")) {
+            require(token.tokenAddress != address(0), "error token addr");
+        }
+
         _transferFromUser(msg.sender, token, recipient.amount);
 
         if (token.tokenType.equals("native") && msg.value > recipient.amount) {
@@ -104,7 +100,7 @@ contract PrimusTip is  Initializable, OwnableUpgradeable {
         if (!contains(tipperCache[msg.sender], cacheKey)) {
             tipperCache[msg.sender].push(cacheKey);
         }
-        emit TipEvent(recipient.idSource, recipient.id);
+        emit TipEvent(recipient.idSource, recipient.id, recipient.amount);
     }
 
     /**
@@ -116,14 +112,12 @@ contract PrimusTip is  Initializable, OwnableUpgradeable {
      */
     function tipBatch(TipToken calldata token, TipRecipientInfo[] calldata recipients) external payable {
         require(token.tokenType.equals("erc20") || token.tokenType.equals("native"), "error token type");
-        require(token.tokenAddress != address(0), "error token addr");
-        
-        for (uint256 i = 0; i < recipients.length; i++) {
-            require(bytes(idSourceCache[recipients[i].idSource].url).length > 0, "id source not exist");
+        if (token.tokenType.equals("erc20")) {
+            require(token.tokenAddress != address(0), "error token addr");
         }
-
         uint256 totalAmount = 0;
         for (uint256 i = 0; i < recipients.length; i++) {
+            require(bytes(idSourceCache[recipients[i].idSource].url).length > 0, "id source not exist");
             require(!recipients[i].id.equals(""), "one id is empty");
             totalAmount += recipients[i].amount;
         }
@@ -142,17 +136,20 @@ contract PrimusTip is  Initializable, OwnableUpgradeable {
                 timestamp: block.timestamp
             });
             _tipRecords[recipients[i].idSource][recipients[i].id].push(tipRecord);
-            emit TipEvent(recipients[i].idSource, recipients[i].id);
+            string memory cacheKey = string(abi.encodePacked(recipients[i].idSource, "-", recipients[i].id));
+            if (!contains(tipperCache[msg.sender], cacheKey)) {
+                tipperCache[msg.sender].push(cacheKey);
+            }
+            emit TipEvent(recipients[i].idSource, recipients[i].id, recipients[i].amount);
         }
     }
 
     /**
-     * @dev Recipient claims the tip tokens by the id source.
+     * @dev Recipient claims the tip tokens by the id.
+     * @param idSource The id source of the recipient.
+     * @param att The attestation of the recipient.
      */
-    function claimBySource(string calldata idSource, Attestation calldata att) public payable nonReentrant {
-        require(msg.value >= claimFee, "Insufficient fee");
-        _chargeFee(claimFee);
-
+    function _claimBySource(string calldata idSource, Attestation calldata att) internal returns (uint256) {
         string memory urlStr = idSourceCache[idSource].url;
         require(bytes(urlStr).length > 0, "id source not exist");
         require(att.recipient != address(0), "to addr zero");
@@ -165,6 +162,8 @@ contract PrimusTip is  Initializable, OwnableUpgradeable {
         string memory id = att.data.extractValue(att.reponseResolve[0].keyName);
         TipRecord[] memory tipRecords = _tipRecords[idSource][id];
         require(tipRecords.length > 0, "no claim token");
+        string memory parsePath = att.reponseResolve[0].parsePath;
+        require(parsePath.equals(idSourceCache[idSource].jsonPath), "json path not match");
 
         delete _tipRecords[idSource][id];
 
@@ -173,6 +172,19 @@ contract PrimusTip is  Initializable, OwnableUpgradeable {
             _transferToken(att.recipient, record.tipToken, record.tipRecipientInfo.amount);
             emit ClaimEvent(att.recipient, record.tipToken.tokenAddress, record.tipRecipientInfo.amount);
         }
+        return tipRecords.length;
+    }
+
+
+    /**
+     * @dev Recipient claims the tip tokens by the id source.
+     */
+    function claimBySource(string calldata idSource, Attestation calldata att) public payable nonReentrant {
+        require(msg.value >= claimFee, "Insufficient fee");
+        uint256 count = _claimBySource(idSource, att);
+        require(count > 0, "no claim token");
+        // charge fee by Source
+        _chargeFee(claimFee*count);
     }
 
     /**
@@ -180,12 +192,11 @@ contract PrimusTip is  Initializable, OwnableUpgradeable {
      */
     function claimByMultiSource(string[] calldata idSources, Attestation[] calldata att) external payable  {
         require(idSources.length == att.length, "length not match");
-        uint256 totalFee = claimFee * idSources.length;
-        _chargeFee(totalFee); 
-
         for (uint256 i = 0; i < idSources.length; i++) {
-            claimBySource(idSources[i], att[i]);
-        }
+            uint256 count = _claimBySource(idSources[i], att[i]);
+            require(count > 0, "no claim token");
+            _chargeFee(claimFee*count);
+        } 
     }
 
     /**
@@ -196,13 +207,13 @@ contract PrimusTip is  Initializable, OwnableUpgradeable {
 
         string[] memory newCache = new string[](tipperCache[msg.sender].length);
         uint256 newCacheCount = 0;
-
         for (uint256 i = 0; i < tipperCache[msg.sender].length; i++) {
             string memory key = tipperCache[msg.sender][i];
             (string memory idSource, string memory id) = splitKey(key);
             TipRecord[] storage records = _tipRecords[idSource][id];
 
             uint256 j = records.length;
+            uint256 k = 0; 
             while (j > 0) {
                 j--;
                 TipRecord storage record = records[j];
@@ -215,18 +226,19 @@ contract PrimusTip is  Initializable, OwnableUpgradeable {
                     // Remove records
                     records[j] = records[records.length - 1];
                     records.pop();
+                }else if(record.tipper == msg.sender && !isExpired(record.timestamp)){
+                    k ++;
                 }
             }
 
             // Only reserved for unexpired records key
-            if (records.length > 0) {
+            if (k > 0) {
                 newCache[newCacheCount] = key;
                 newCacheCount++;
             } else {
                 delete _tipRecords[idSource][id];
             }
         }
-
         // update tipperCache
         assembly {
             mstore(newCache, newCacheCount) // change newCache array size
@@ -245,37 +257,37 @@ contract PrimusTip is  Initializable, OwnableUpgradeable {
     /**
      * @dev Add the id attestation source.
      */
-    function addIdSource(string memory _sourceName, string memory _url, string memory _jsonPath) external onlyOwner {
-        require(bytes(_sourceName).length > 0, "Empty source name");
-        require(bytes(idSourceCache[_sourceName].url).length == 0, "Source exists");
-        idSourceCache[_sourceName] = IdSource({
-            url: _url,
-            jsonPath: _jsonPath
+    function addIdSource(string memory sourceName_, string memory url_, string memory jsonPath_) external onlyOwner {
+        require(bytes(sourceName_).length > 0, "Empty source name");
+        require(bytes(idSourceCache[sourceName_].url).length == 0, "Source exists");
+        idSourceCache[sourceName_] = IdSource({
+            url: url_,
+            jsonPath: jsonPath_
         });
-        emit AddIdSource(_sourceName, _url, _jsonPath);
+        emit AddIdSource(sourceName_, url_, jsonPath_);
     }
 
     /**
      * @dev Add the id attestation source in batch.
     */
-    function addBatchIdSource(string[] memory _sourceName, string[] memory _url, string[] memory _jsonPath) external onlyOwner {
-        require(_sourceName.length == _url.length && _url.length == _jsonPath.length, "length not match");
-        for (uint256 i = 0; i < _sourceName.length; i++) {
-            idSourceCache[_sourceName[i]] = IdSource({
-                url: _url[i],
-                jsonPath: _jsonPath[i]
+    function addBatchIdSource(string[] memory sourceName_, string[] memory url_, string[] memory jsonPath_) external onlyOwner {
+        require(sourceName_.length == url_.length && url_.length == jsonPath_.length, "length not match");
+        for (uint256 i = 0; i < sourceName_.length; i++) {
+            idSourceCache[sourceName_[i]] = IdSource({
+                url: url_[i],
+                jsonPath: jsonPath_[i]
             });
-            emit AddIdSource(_sourceName[i], _url[i], _jsonPath[i]);
+            emit AddIdSource(sourceName_[i], url_[i], jsonPath_[i]);
         }
     }
 
     /**
      * @dev Set the fee recipient address.
-     * @param newFeeRecipient The fee recipient address.
+     * @param feeRecipient_ The fee recipient address.
     */
-    function setFeeRecipient(address newFeeRecipient) external onlyOwner {
-        emit FeeRecipientChanged(feeRecipient, newFeeRecipient);
-        feeRecipient = newFeeRecipient;
+    function setFeeRecipient(address feeRecipient_) external onlyOwner {
+        emit FeeRecipientChanged(feeRecipient, feeRecipient_);
+        feeRecipient = feeRecipient_;
     }
 
     /**
@@ -289,20 +301,20 @@ contract PrimusTip is  Initializable, OwnableUpgradeable {
 
     /**
      *  @dev set IPrimusZKTLS contract instance
-     *  @param _primusZKTLS The address of the IPrimusZKTLS contract
+     *  @param primusZKTLS_ The address of the IPrimusZKTLS contract
      */
-    function setPrimusZKTLS(IPrimusZKTLS _primusZKTLS) public onlyOwner {
-        primusZKTLS = _primusZKTLS;
-        emit SetPrimusZKTLS(address(_primusZKTLS));
+    function setPrimusZKTLS(IPrimusZKTLS primusZKTLS_) public onlyOwner {
+        primusZKTLS = primusZKTLS_;
+        emit SetPrimusZKTLS(address(primusZKTLS_));
     }
 
     /**
      *  @dev set claim fee
-     *  @param _claimFee The submission fee
+     *  @param claimFee_ The submission fee
      */
-    function setClaimFee(uint256 _claimFee) public onlyOwner {
-        claimFee = _claimFee;
-        emit ClaimFeeSet(_claimFee);
+    function setClaimFee(uint256 claimFee_) public onlyOwner {
+        claimFee = claimFee_;
+        emit ClaimFeeSet(claimFee_);
     }
 
 
@@ -377,7 +389,7 @@ contract PrimusTip is  Initializable, OwnableUpgradeable {
      * @return True if the tip is expired, otherwise false.
     */
     function isExpired(uint256 timestamp) internal view returns (bool) {
-        return block.timestamp >= timestamp + 30 days;
+        return block.timestamp >= timestamp + withdrawDelay;
     }
 
     /**
