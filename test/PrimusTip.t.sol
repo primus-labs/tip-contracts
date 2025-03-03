@@ -126,7 +126,7 @@ contract PrimusTipTest is Test {
         vm.startPrank(recipientAddr);
         primusTip.claimBySource(idSource, attestation);
         vm.stopPrank();
-        console.log("-----recipientAddr.balance", recipientAddr.balance);
+        console.log("recipientAddr.balance", recipientAddr.balance);
         assertEq(recipientAddr.balance, 1 ether, "Native token transfer failed");
     }
 
@@ -230,7 +230,7 @@ contract PrimusTipTest is Test {
             vm.startPrank(tipper);
             IERC20(erc20Token).approve(address(primusTip), recipient.amount);
             uint256 tipperBalance = IERC20(erc20Token).balanceOf(tipper);
-            console.log("tipperBalance--1-", tipperBalance);
+            console.log("tipperBalance:%d", tipperBalance);
             primusTip.tip(TipToken("erc20", erc20Token), recipient);
             vm.stopPrank();
         }
@@ -250,6 +250,73 @@ contract PrimusTipTest is Test {
             assertEq(primusTip.getTipRecords(TipRecipient("github", idStr)).length, 0);
         }
     }
+
+    
+    function test_TipperWithdraw_PartiallyExpired() public {
+        TipToken memory token = TipToken("erc20", erc20Token);
+    
+        TipRecipientInfo memory expiredRecipient = TipRecipientInfo(
+            "tiktok", 
+            "expired_user",
+            200,
+            new uint256[](0)
+        );
+    
+        TipRecipientInfo memory validRecipient = TipRecipientInfo(
+            "tiktok", 
+            "valid_user",
+            300,
+            new uint256[](0)
+        );
+
+        vm.startPrank(tipper);
+        IERC20(erc20Token).approve(address(primusTip), expiredRecipient.amount + validRecipient.amount);
+        primusTip.tip(token, expiredRecipient);
+    
+  
+        vm.warp(block.timestamp + primusTip.withdrawDelay() - 1 days); 
+        primusTip.tip(token, validRecipient); 
+        vm.stopPrank();
+
+
+        assertEq(
+            primusTip.getTipRecords(TipRecipient("tiktok", "expired_user")).length,
+            1,
+            "Expired record not exist"
+        );
+        assertEq(
+            primusTip.getTipRecords(TipRecipient("tiktok", "valid_user")).length,
+            1,
+            "Valid record not exist"
+        );
+        vm.warp(block.timestamp + 2 days);
+
+        uint256 initialBalance = IERC20(erc20Token).balanceOf(tipper);
+    
+        vm.prank(tipper);
+        primusTip.tipperWithdraw();
+
+        assertEq(
+            IERC20(erc20Token).balanceOf(tipper),
+            initialBalance + 200, 
+            "Expired amount not withdrawn"
+        );
+    
+        assertEq(
+            primusTip.getTipRecords(TipRecipient("tiktok", "expired_user")).length,
+            0,
+            "Expired record not removed"
+        );
+    
+        assertEq(
+            primusTip.getTipRecords(TipRecipient("tiktok", "valid_user")).length,
+            1,
+            "Valid record incorrectly removed"
+        );
+    
+    }
+    
+
 
     function test_TipperWithdraw_Failure_NoPending() public {
         vm.expectRevert("No pending withdrawals");
@@ -380,7 +447,7 @@ contract PrimusTipTest is Test {
             AttNetworkResponseResolve[] memory response = new AttNetworkResponseResolve[](1);
             response[0] = AttNetworkResponseResolve({
                 keyName: "username",
-                parseType: "",
+                parseType: "jsonpath",
                 parsePath: "$.data.username"
             });
 
@@ -427,7 +494,7 @@ contract PrimusTipTest is Test {
         AttNetworkResponseResolve[] memory response = new AttNetworkResponseResolve[](1);
             response[0] = AttNetworkResponseResolve({
                 keyName: "screen_name",
-                parseType: "",
+                parseType: "jsonpath",
                 parsePath: "$.screen_name"
             });
 
