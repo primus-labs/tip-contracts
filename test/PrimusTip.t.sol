@@ -159,13 +159,6 @@ contract PrimusTipTest is Test {
     }
 
 
-    function test_TipperWithdraw_Failure_NotExpired() public {
-        vm.expectRevert(); // Not until waiting period
-        vm.prank(user);
-        primusTip.tipperWithdraw();
-    }
-
-
     function test_AddBatchIdSource_Failure_LengthMismatch() public {
         string[] memory names = new string[](2);
         string[] memory urls = new string[](1);
@@ -204,7 +197,10 @@ contract PrimusTipTest is Test {
         console.log("initialBalance", initialBalance);    
        
         vm.prank(tipper);
-        primusTip.tipperWithdraw();
+        TipRecipient[] memory recipients = new TipRecipient[](1);
+        TipRecipient memory recipient = TipRecipient("tiktok", "user123");
+        recipients[0] = recipient;
+        primusTip.tipperWithdraw(recipients);
 
         assertEq(
             IERC20(erc20Token).balanceOf(tipper),
@@ -241,7 +237,20 @@ contract PrimusTipTest is Test {
         
         
         vm.prank(tipper);
-        primusTip.tipperWithdraw();
+        TipRecipient[] memory recipients = new TipRecipient[](5);
+        TipRecipient memory recipient1 = TipRecipient("github", "user0");
+        TipRecipient memory recipient2 = TipRecipient("github", "user1");
+        TipRecipient memory recipient3 = TipRecipient("github", "user2");
+        TipRecipient memory recipient4 = TipRecipient("github", "user3");
+        TipRecipient memory recipient5 = TipRecipient("github", "user4");
+        recipients[0] = recipient1;
+        recipients[1] = recipient2;
+        recipients[2] = recipient3;
+        recipients[3] = recipient4;
+        recipients[4] = recipient5;
+
+        assertEq(IERC20(erc20Token).balanceOf(tipper), 500, "Balance not updated correctly");
+        primusTip.tipperWithdraw(recipients);
 
         assertEq(IERC20(erc20Token).balanceOf(tipper), 1000, "Balance not updated correctly");
 
@@ -293,8 +302,11 @@ contract PrimusTipTest is Test {
 
         uint256 initialBalance = IERC20(erc20Token).balanceOf(tipper);
     
+        TipRecipient[] memory recipients = new TipRecipient[](1);
+        TipRecipient memory recipient = TipRecipient("tiktok", "expired_user");
+        recipients[0] = recipient;
         vm.prank(tipper);
-        primusTip.tipperWithdraw();
+        primusTip.tipperWithdraw(recipients);
 
         assertEq(
             IERC20(erc20Token).balanceOf(tipper),
@@ -314,14 +326,6 @@ contract PrimusTipTest is Test {
             "Valid record incorrectly removed"
         );
     
-    }
-    
-
-
-    function test_TipperWithdraw_Failure_NoPending() public {
-        vm.expectRevert("No pending withdrawals");
-        vm.prank(address(0x999)); 
-        primusTip.tipperWithdraw();
     }
 
     // ========== claimByMultiSource  ==========

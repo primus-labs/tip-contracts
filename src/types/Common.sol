@@ -32,9 +32,9 @@ struct TipRecord {
     uint256 amount;
     // The tip token.
     TipToken tipToken;
-    // The tipper address.
     // The tip timstamp.
     uint64 timestamp;
+    // The tipper address.
     address tipper;
     // The nft token ids when token is nft.
     uint256[] nftIds;
