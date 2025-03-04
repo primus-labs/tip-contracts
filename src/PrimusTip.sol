@@ -18,7 +18,7 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     using StringUtils for string;
     using JsonParser for string;
 
-    event TipEvent(string idSource, string id, uint256 amount);
+    event TipEvent(string idSource, string id);
     event FeeRecipientChanged(address indexed oldRecipient, address indexed newRecipient);
     event WithdrawDelayChanged(uint256 oldDelay, uint256 newDelay);
     event ClaimEvent(address indexed recipient, address tokenAddr, uint256 amount);
@@ -41,8 +41,8 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     // Tip records by idSource and id
     mapping(string => mapping(string => TipRecord[])) private _tipRecords;
     // Tip record by tipper address and id
-    mapping(address => mapping(string => bool)) private tipperCache;
-    mapping(address => string[]) private tipperKeys; 
+    // mapping(address => mapping(string => bool)) private tipperCache;
+    // mapping(address => string[]) private tipperKeys;
 
     uint32 constant ERC20_TYPE = 0;
     uint32 constant NATIVE_TYPE = 1;
@@ -101,12 +101,12 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         });
         _tipRecords[recipient.idSource][recipient.id].push(tipRecord);
 
-        string memory cacheKey = string(abi.encodePacked(recipient.idSource, "-", recipient.id));
-        if (!tipperCache[msg.sender][cacheKey]) {
-            tipperKeys[msg.sender].push(cacheKey);
-            tipperCache[msg.sender][cacheKey] = true;
-        }
-        emit TipEvent(recipient.idSource, recipient.id, recipient.amount);
+        // string memory cacheKey = string(abi.encodePacked(recipient.idSource, "-", recipient.id));
+        // if (!tipperCache[msg.sender][cacheKey]) {
+        //     tipperKeys[msg.sender].push(cacheKey);
+        //     tipperCache[msg.sender][cacheKey] = true;
+        // }
+        emit TipEvent(recipient.idSource, recipient.id);
     }
 
     /**
@@ -143,12 +143,12 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
                 timestamp: (uint64)(block.timestamp)
             });
             _tipRecords[recipients[i].idSource][recipients[i].id].push(tipRecord);
-            string memory cacheKey = string(abi.encodePacked(recipients[i].idSource, "-", recipients[i].id));
-            if (!tipperCache[msg.sender][cacheKey]) {
-                tipperKeys[msg.sender].push(cacheKey);
-                tipperCache[msg.sender][cacheKey] = true;
-            }
-            emit TipEvent(recipients[i].idSource, recipients[i].id, recipients[i].amount);
+            // string memory cacheKey = string(abi.encodePacked(recipients[i].idSource, "-", recipients[i].id));
+            // if (!tipperCache[msg.sender][cacheKey]) {
+            //     tipperKeys[msg.sender].push(cacheKey);
+            //     tipperCache[msg.sender][cacheKey] = true;
+            // }
+            emit TipEvent(recipients[i].idSource, recipients[i].id);
         }
     }
 
@@ -176,46 +176,7 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     /**
      * @dev The tipper withdraws tokens that have not been claimed within the specified time period.
      */
-    function tipperWithdraw() external nonReentrant {
-        string[] storage keys = tipperKeys[msg.sender];
-        require(keys.length > 0, "No pending withdrawals");
-
-        uint256 newKeysCount = 0;
-        for (uint256 i = 0; i < keys.length; i++) {
-            string memory key = keys[i];
-            (string memory idSource, string memory id) = splitKey(key);
-            TipRecord[] storage records = _tipRecords[idSource][id];
-
-            uint256 j = records.length;
-            uint256 k = 0; 
-            while (j > 0) {
-                j--;
-                TipRecord storage record = records[j];
-
-                if (record.tipper == msg.sender && isExpired(record.timestamp)) {
-                    uint256 amount = record.amount;
-                    _transferToken(msg.sender, record.tipToken, amount);
-                    emit WithdrawEvent(msg.sender, record.tipToken.tokenAddress, amount);
-
-                    // Remove records
-                    records[j] = records[records.length - 1];
-                    records.pop();
-                }else if(record.tipper == msg.sender && !isExpired(record.timestamp)){
-                    k ++;
-                }
-            }
-
-            // Only reserved for unexpired records key
-            if (k > 0) {
-                keys[newKeysCount++] = key;       
-            }else{
-                delete tipperCache[msg.sender][key];
-            } 
-        }
-        // update tipperKeys
-        assembly {
-            sstore(keys.slot, newKeysCount) // change newCache array size
-        }
+    function tipperWithdraw(TipRecipient[] calldata TipRecipients) external nonReentrant {
     }
 
     /**
@@ -423,5 +384,50 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         require(separatorIndex > 0 && separatorIndex < keyBytes.length - 1, "Invalid key format");
         return (string(idSource), string(id));
     }
+
+        // /**
+    //  * @dev The tipper withdraws tokens that have not been claimed within the specified time period.
+    //  */
+    // function tipperWithdraw() external nonReentrant {
+    //     string[] storage keys = tipperKeys[msg.sender];
+    //     require(keys.length > 0, "No pending withdrawals");
+
+    //     uint256 newKeysCount = 0;
+    //     for (uint256 i = 0; i < keys.length; i++) {
+    //         string memory key = keys[i];
+    //         (string memory idSource, string memory id) = splitKey(key);
+    //         TipRecord[] storage records = _tipRecords[idSource][id];
+
+    //         uint256 j = records.length;
+    //         uint256 k = 0;
+    //         while (j > 0) {
+    //             j--;
+    //             TipRecord storage record = records[j];
+
+    //             if (record.tipper == msg.sender && isExpired(record.timestamp)) {
+    //                 uint256 amount = record.amount;
+    //                 _transferToken(msg.sender, record.tipToken, amount);
+    //                 emit WithdrawEvent(msg.sender, record.tipToken.tokenAddress, amount);
+
+    //                 // Remove records
+    //                 records[j] = records[records.length - 1];
+    //                 records.pop();
+    //             }else if(record.tipper == msg.sender && !isExpired(record.timestamp)){
+    //                 k ++;
+    //             }
+    //         }
+
+    //         // Only reserved for unexpired records key
+    //         if (k > 0) {
+    //             keys[newKeysCount++] = key;
+    //         }else{
+    //             delete tipperCache[msg.sender][key];
+    //         }
+    //     }
+    //     // update tipperKeys
+    //     assembly {
+    //         sstore(keys.slot, newKeysCount) // change newCache array size
+    //     }
+    // }
 
 }
