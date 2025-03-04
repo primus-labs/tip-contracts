@@ -10,7 +10,6 @@ import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 import "./utils/StringUtils.sol";
 import "./utils/JsonParser.sol";
 
-
 /**
  * @dev The Primus Tip contract is used to manage users’ tip funds.
  *      Tippers can lock funds in contracts, and recipients can claim the tip funds after verifying their identities.
@@ -42,8 +41,12 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     // Tip records by idSource and id
     mapping(string => mapping(string => TipRecord[])) private _tipRecords;
     // Tip record by tipper address and id
-    mapping(address => string[]) private tipperCache;
-  
+    // mapping(address => string[]) private tipperCache;
+    mapping(address => mapping(string => bool)) private tipperCache;
+    mapping(address => string[]) private tipperKeys; 
+
+    bytes32 constant ERC20_TYPE = keccak256("erc20");
+    bytes32 constant NATIVE_TYPE = keccak256("native");
 
     /**
      * @dev Initialize function to set the owner of the contract.
@@ -75,7 +78,8 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @param recipient The recipient informations.
      */
     function tip(TipToken calldata token, TipRecipientInfo calldata recipient) external payable {
-        require(token.tokenType.equals("erc20") || token.tokenType.equals("native"), "error token type");
+        bytes32 tokenTypeHash = keccak256(bytes(token.tokenType)); 
+        require(tokenTypeHash == ERC20_TYPE || tokenTypeHash == NATIVE_TYPE,"error token type");
         require(recipient.amount > 0, "amount is zero");
         require(!recipient.id.equals(""), "id is empty");
         require(bytes(idSourceCache[recipient.idSource].url).length > 0, "id source not exist");
@@ -99,8 +103,9 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         _tipRecords[recipient.idSource][recipient.id].push(tipRecord);
 
         string memory cacheKey = string(abi.encodePacked(recipient.idSource, "-", recipient.id));
-        if (!contains(tipperCache[msg.sender], cacheKey)) {
-            tipperCache[msg.sender].push(cacheKey);
+        if (!tipperCache[msg.sender][cacheKey]) {
+            tipperKeys[msg.sender].push(cacheKey);
+            tipperCache[msg.sender][cacheKey] = true;
         }
         emit TipEvent(recipient.idSource, recipient.id, recipient.amount);
     }
@@ -113,7 +118,7 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @param recipients The recipients informations.
      */
     function tipBatch(TipToken calldata token, TipRecipientInfo[] calldata recipients) external payable {
-        require(token.tokenType.equals("erc20") || token.tokenType.equals("native"), "error token type");
+        require(keccak256(bytes(token.tokenType)) == ERC20_TYPE || keccak256(bytes(token.tokenType)) == NATIVE_TYPE,"error token type");
         if (token.tokenType.equals("erc20")) {
             require(token.tokenAddress != address(0), "error token addr");
         }
@@ -139,8 +144,9 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
             });
             _tipRecords[recipients[i].idSource][recipients[i].id].push(tipRecord);
             string memory cacheKey = string(abi.encodePacked(recipients[i].idSource, "-", recipients[i].id));
-            if (!contains(tipperCache[msg.sender], cacheKey)) {
-                tipperCache[msg.sender].push(cacheKey);
+            if (!tipperCache[msg.sender][cacheKey]) {
+                tipperKeys[msg.sender].push(cacheKey);
+                tipperCache[msg.sender][cacheKey] = true;
             }
             emit TipEvent(recipients[i].idSource, recipients[i].id, recipients[i].amount);
         }
@@ -171,12 +177,12 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @dev The tipper withdraws tokens that have not been claimed within the specified time period.
      */
     function tipperWithdraw() external nonReentrant {
-        require(tipperCache[msg.sender].length > 0, "No pending withdrawals");
+        string[] storage keys = tipperKeys[msg.sender];
+        require(keys.length > 0, "No pending withdrawals");
 
-        string[] memory newCache = new string[](tipperCache[msg.sender].length);
-        uint256 newCacheCount = 0;
-        for (uint256 i = 0; i < tipperCache[msg.sender].length; i++) {
-            string memory key = tipperCache[msg.sender][i];
+        uint256 newKeysCount = 0;
+        for (uint256 i = 0; i < keys.length; i++) {
+            string memory key = keys[i];
             (string memory idSource, string memory id) = splitKey(key);
             TipRecord[] storage records = _tipRecords[idSource][id];
 
@@ -201,15 +207,13 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
 
             // Only reserved for unexpired records key
             if (k > 0) {
-                newCache[newCacheCount] = key;
-                newCacheCount++;
+                keys[newKeysCount++] = key;       
             } 
         }
         // update tipperCache
         assembly {
-            mstore(newCache, newCacheCount) // change newCache array size
+            sstore(keys.slot, newKeysCount) // change newCache array size
         }
-        tipperCache[msg.sender] = newCache;
     }
 
     /**
@@ -389,22 +393,7 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     function isExpired(uint256 timestamp) internal view returns (bool) {
         return block.timestamp >= timestamp + withdrawDelay;
     }
-
-    /**
-     * @dev Check if the value is in the array.
-     * @param array The array to check.
-     * @param value The value to check.
-     * @return True if the value is in the array, otherwise false.
-    */
-    function contains(string[] storage array, string memory value) internal view returns (bool) {
-        for (uint256 i = 0; i < array.length; i++) {
-            if (keccak256(abi.encodePacked(array[i])) == keccak256(abi.encodePacked(value))) {
-                return true;
-            }
-        }
-        return false;
-    }
-
+    
     /**
      * @dev Split the key into id and id source.
      * @param key The key to split.
@@ -432,4 +421,5 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         require(separatorIndex > 0 && separatorIndex < keyBytes.length - 1, "Invalid key format");
         return (string(idSource), string(id));
     }
+
 }
