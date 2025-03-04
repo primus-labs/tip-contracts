@@ -79,7 +79,7 @@ contract PrimusTipTest is Test {
 
     function test_TipERC20() public {
         TipToken memory token = TipToken({
-            tokenType: "erc20",
+            tokenType: 0,
             tokenAddress: erc20Token
         });
 
@@ -102,7 +102,7 @@ contract PrimusTipTest is Test {
         string memory id = "fksyuan";
         
         TipToken memory token = TipToken({
-            tokenType: "native",
+            tokenType: 1,
             tokenAddress: address(0)
         });
         uint256[] memory nftIds = new uint256[](0);
@@ -135,7 +135,7 @@ contract PrimusTipTest is Test {
         string memory id = "wenjun_yuan1";
         
         TipToken memory token = TipToken({
-            tokenType: "native",
+            tokenType: 1,
             tokenAddress: address(0)
         });
         uint256[] memory nftIds = new uint256[](0);
@@ -179,7 +179,7 @@ contract PrimusTipTest is Test {
     // ========== tipperWithdraw ==========
     function test_TipperWithdraw_Success() public {
        TipToken memory token = TipToken({
-            tokenType: "erc20",
+            tokenType: 0,
             tokenAddress: erc20Token
         });
 
@@ -231,7 +231,7 @@ contract PrimusTipTest is Test {
             IERC20(erc20Token).approve(address(primusTip), recipient.amount);
             uint256 tipperBalance = IERC20(erc20Token).balanceOf(tipper);
             console.log("tipperBalance:%d", tipperBalance);
-            primusTip.tip(TipToken("erc20", erc20Token), recipient);
+            primusTip.tip(TipToken(0, erc20Token), recipient);
             vm.stopPrank();
         }
 
@@ -253,7 +253,7 @@ contract PrimusTipTest is Test {
 
     
     function test_TipperWithdraw_PartiallyExpired() public {
-        TipToken memory token = TipToken("erc20", erc20Token);
+        TipToken memory token = TipToken(0, erc20Token);
     
         TipRecipientInfo memory expiredRecipient = TipRecipientInfo(
             "tiktok", 
@@ -344,7 +344,7 @@ contract PrimusTipTest is Test {
     }
 
     function _tipForSources(string[] memory sources, uint256 amount) private {
-        TipToken memory token = TipToken("native", address(0));
+        TipToken memory token = TipToken(1, address(0));
     
         for (uint i = 0; i < sources.length; i++) {
             string memory userName ;
@@ -368,7 +368,7 @@ contract PrimusTipTest is Test {
 
     // ========== tipBatch  ==========
     function test_TipBatch_Success() public {
-        TipToken memory token = TipToken("erc20", erc20Token);
+        TipToken memory token = TipToken(0, erc20Token);
         TipRecipientInfo[] memory recipients = new TipRecipientInfo[](2);
         recipients[0] = TipRecipientInfo("github", "user1", 50, new uint256[](0));
         recipients[1] = TipRecipientInfo("github", "user2", 50, new uint256[](0));
@@ -391,7 +391,7 @@ contract PrimusTipTest is Test {
     }
 
     function test_TipBatch_Failure_ZeroAmount() public {
-        TipToken memory token = TipToken("erc20", erc20Token);
+        TipToken memory token = TipToken(0, erc20Token);
         TipRecipientInfo[] memory recipients = new TipRecipientInfo[](1);
         recipients[0] = TipRecipientInfo("github", "user1", 0, new uint256[](0));
 

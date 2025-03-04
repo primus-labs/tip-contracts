@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 
 struct TipToken {
     // tokenType is erc20, nft or native. The native is native token.
-    string tokenType;
+    uint32 tokenType;
     // Token Address.
     address tokenAddress;
 }
@@ -28,14 +28,16 @@ struct TipRecipient {
 }
 
 struct TipRecord {
-    // The tip recipient info.
-    TipRecipientInfo tipRecipientInfo;
+    // The amount of token when token is erc20 and native.
+    uint256 amount;
     // The tip token.
     TipToken tipToken;
     // The tipper address.
-    address tipper;
     // The tip timstamp.
-    uint256 timestamp;
+    uint64 timestamp;
+    address tipper;
+    // The nft token ids when token is nft.
+    uint256[] nftIds;
 }
 
 struct IdSource {
