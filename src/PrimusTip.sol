@@ -163,7 +163,6 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     function claimByMultiSource(string[] calldata idSources, Attestation[] calldata att) external payable  {
         require(idSources.length == att.length, "length not match");
         for (uint256 i = 0; i < idSources.length; i++) {
-            _chargeFee(claimFee*count);
             this.claimBySource(idSources[i], att[i]);
         } 
     }
