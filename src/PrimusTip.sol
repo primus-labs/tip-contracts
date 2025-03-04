@@ -210,7 +210,7 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
                 keys[newKeysCount++] = key;       
             } 
         }
-        // update tipperCache
+        // update tipperKeys
         assembly {
             sstore(keys.slot, newKeysCount) // change newCache array size
         }
