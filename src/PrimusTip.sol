@@ -65,6 +65,8 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         claimFee = claimFee_;
     }
 
+    
+    // ========== external  ==========
     /**
      * @dev Tipper tip the token to the recipient.
      *      Tipper can tip erc20, NFT and native token.
@@ -145,44 +147,12 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     }
 
     /**
-     * @dev Recipient claims the tip tokens by the id.
-     * @param idSource The id source of the recipient.
-     * @param att The attestation of the recipient.
-     */
-    function _claimBySource(string calldata idSource, Attestation calldata att) internal returns (uint256) {
-        string memory urlStr = idSourceCache[idSource].url;
-        require(bytes(urlStr).length > 0, "id source not exist");
-        require(att.recipient != address(0), "to addr zero");
-        require(att.reponseResolve.length > 0, "No response key");
-
-        primusZKTLS.verifyAttestation(att);
-        string memory sourceStr = extractBaseUrl(att.request.url);
-        require(urlStr.equals(sourceStr), "id source not match");
-
-        string memory id = att.data.extractValue(att.reponseResolve[0].keyName);
-        TipRecord[] memory tipRecords = _tipRecords[idSource][id];
-        require(tipRecords.length > 0, "no claim token");
-        string memory parsePath = att.reponseResolve[0].parsePath;
-        require(parsePath.equals(idSourceCache[idSource].jsonPath), "json path not match");
-
-        delete _tipRecords[idSource][id];
-
-        for (uint256 i = 0; i < tipRecords.length; i++) {
-            TipRecord memory record = tipRecords[i];
-            _transferToken(att.recipient, record.tipToken, record.tipRecipientInfo.amount);
-            emit ClaimEvent(att.recipient, record.tipToken.tokenAddress, record.tipRecipientInfo.amount);
-        }
-        return tipRecords.length;
-    }
-
-
-    /**
      * @dev Recipient claims the tip tokens by the id source.
      */
-    function claimBySource(string calldata idSource, Attestation calldata att) public payable nonReentrant {
-        require(msg.value >= claimFee, "Insufficient fee");
+    function claimBySource(string calldata idSource, Attestation calldata att) external payable nonReentrant {
         uint256 count = _claimBySource(idSource, att);
         require(count > 0, "no claim token");
+        require(msg.value >= claimFee*count, "Insufficient fee");
         // charge fee by Source
         _chargeFee(claimFee*count);
     }
@@ -193,9 +163,8 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     function claimByMultiSource(string[] calldata idSources, Attestation[] calldata att) external payable  {
         require(idSources.length == att.length, "length not match");
         for (uint256 i = 0; i < idSources.length; i++) {
-            uint256 count = _claimBySource(idSources[i], att[i]);
-            require(count > 0, "no claim token");
             _chargeFee(claimFee*count);
+            this.claimBySource(idSources[i], att[i]);
         } 
     }
 
@@ -235,9 +204,7 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
             if (k > 0) {
                 newCache[newCacheCount] = key;
                 newCacheCount++;
-            } else {
-                delete _tipRecords[idSource][id];
-            }
+            } 
         }
         // update tipperCache
         assembly {
@@ -281,11 +248,12 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         }
     }
 
-    /**
+    // ========== public  ==========
+     /**
      * @dev Set the fee recipient address.
      * @param feeRecipient_ The fee recipient address.
     */
-    function setFeeRecipient(address feeRecipient_) external onlyOwner {
+    function setFeeRecipient(address feeRecipient_) public onlyOwner {
         emit FeeRecipientChanged(feeRecipient, feeRecipient_);
         feeRecipient = feeRecipient_;
     }
@@ -294,11 +262,10 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @dev set the withdraw delay.
      * @param delay The withdraw delay Unit should be days.
     */
-    function setWithdrawDelay(uint256 delay) external onlyOwner {
+    function setWithdrawDelay(uint256 delay) public onlyOwner {
         emit WithdrawDelayChanged(withdrawDelay, delay);
         withdrawDelay = delay;
     }
-
     /**
      *  @dev set IPrimusZKTLS contract instance
      *  @param primusZKTLS_ The address of the IPrimusZKTLS contract
@@ -315,6 +282,38 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     function setClaimFee(uint256 claimFee_) public onlyOwner {
         claimFee = claimFee_;
         emit ClaimFeeSet(claimFee_);
+    }
+
+     // ========== internal  ==========
+     /**
+     * @dev Recipient claims the tip tokens by the id.
+     * @param idSource The id source of the recipient.
+     * @param att The attestation of the recipient.
+     */
+    function _claimBySource(string calldata idSource, Attestation calldata att) internal returns (uint256) {
+        string memory urlStr = idSourceCache[idSource].url;
+        require(bytes(urlStr).length > 0, "id source not exist");
+        require(att.recipient != address(0), "to addr zero");
+        require(att.reponseResolve.length > 0, "No response key");
+
+        primusZKTLS.verifyAttestation(att);
+        string memory sourceStr = extractBaseUrl(att.request.url);
+        require(urlStr.equals(sourceStr), "id source not match");
+
+        string memory id = att.data.extractValue(att.reponseResolve[0].keyName);
+        TipRecord[] memory tipRecords = _tipRecords[idSource][id];
+        require(tipRecords.length > 0, "no claim token");
+        string memory parsePath = att.reponseResolve[0].parsePath;
+        require(parsePath.equals(idSourceCache[idSource].jsonPath), "json path not match");
+
+        delete _tipRecords[idSource][id];
+
+        for (uint256 i = 0; i < tipRecords.length; i++) {
+            TipRecord memory record = tipRecords[i];
+            _transferToken(att.recipient, record.tipToken, record.tipRecipientInfo.amount);
+            emit ClaimEvent(att.recipient, record.tipToken.tokenAddress, record.tipRecipientInfo.amount);
+        }
+        return tipRecords.length;
     }
 
 
