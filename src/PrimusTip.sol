@@ -41,7 +41,6 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     // Tip records by idSource and id
     mapping(string => mapping(string => TipRecord[])) private _tipRecords;
     // Tip record by tipper address and id
-    // mapping(address => string[]) private tipperCache;
     mapping(address => mapping(string => bool)) private tipperCache;
     mapping(address => string[]) private tipperKeys; 
 
@@ -84,13 +83,13 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         require(!recipient.id.equals(""), "id is empty");
         require(bytes(idSourceCache[recipient.idSource].url).length > 0, "id source not exist");
 
-        if (token.tokenType.equals("erc20")) {
+        if (tokenTypeHash == ERC20_TYPE) {
             require(token.tokenAddress != address(0), "error token addr");
         }
 
-        _transferFromUser(msg.sender, token, recipient.amount);
+        _transferFromUser(msg.sender, token, recipient.amount, tokenTypeHash);
 
-        if (token.tokenType.equals("native") && msg.value > recipient.amount) {
+        if (tokenTypeHash == NATIVE_TYPE && msg.value > recipient.amount) {
             payable(msg.sender).transfer(msg.value - recipient.amount);
         }
         
@@ -118,8 +117,9 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @param recipients The recipients informations.
      */
     function tipBatch(TipToken calldata token, TipRecipientInfo[] calldata recipients) external payable {
-        require(keccak256(bytes(token.tokenType)) == ERC20_TYPE || keccak256(bytes(token.tokenType)) == NATIVE_TYPE,"error token type");
-        if (token.tokenType.equals("erc20")) {
+        bytes32 tokenTypeHash = keccak256(bytes(token.tokenType)); 
+        require(tokenTypeHash == ERC20_TYPE || tokenTypeHash == NATIVE_TYPE,"error token type");
+        if (tokenTypeHash == ERC20_TYPE) {
             require(token.tokenAddress != address(0), "error token addr");
         }
         uint256 totalAmount = 0;
@@ -129,9 +129,9 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
             totalAmount += recipients[i].amount;
         }
         require(totalAmount > 0, "amount is zero");
-        _transferFromUser(msg.sender, token, totalAmount);
+        _transferFromUser(msg.sender, token, totalAmount, tokenTypeHash);
 
-        if (token.tokenType.equals("native") && msg.value > totalAmount) {
+        if (tokenTypeHash == NATIVE_TYPE && msg.value > totalAmount) {
             payable(msg.sender).transfer(msg.value - totalAmount);
         }
         
@@ -208,6 +208,8 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
             // Only reserved for unexpired records key
             if (k > 0) {
                 keys[newKeysCount++] = key;       
+            }else{
+                delete tipperCache[msg.sender][key];
             } 
         }
         // update tipperKeys
@@ -326,12 +328,12 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @param token The tip token.
      * @param amount The token amount.
     */
-    function _transferFromUser(address from, TipToken memory token, uint256 amount) internal {
-        if (token.tokenType.equals("erc20")) {
+    function _transferFromUser(address from, TipToken memory token, uint256 amount, bytes32 tokenTypeHash) internal {
+        if (tokenTypeHash == ERC20_TYPE) {
             IERC20 tipToken = IERC20(token.tokenAddress);
             bool ret = tipToken.transferFrom(from, address(this), amount);
             require(ret, "transfer token fail");
-        } else if (token.tokenType.equals("native")) {
+        } else if (tokenTypeHash == NATIVE_TYPE) {
             require(msg.value >= amount, "Insufficient ETH");
         }
     }
@@ -343,10 +345,11 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @param amount The token amount.
     */
     function _transferToken(address to, TipToken memory token, uint256 amount) internal {
-        if (token.tokenType.equals("erc20")) {
+        bytes32 tokenTypeHash = keccak256(bytes(token.tokenType));
+        if (tokenTypeHash == ERC20_TYPE) {
             IERC20 tipToken = IERC20(token.tokenAddress);
             require(tipToken.transfer(to, amount), "Transfer failed");
-        } else if (token.tokenType.equals("native")) {
+        } else if (tokenTypeHash == NATIVE_TYPE) {
             (bool success, ) = to.call{value: amount}("");
             require(success, "ETH transfer failed");
         }
