@@ -13,8 +13,9 @@ contract DeployScript is Script {
         // 1. Get private key
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployerAddress = vm.addr(deployerPrivateKey);
-        address feeRecent = vm.envAddress("FEE_RECIPIENT");
+        address feeRecipient = vm.envAddress("FEE_RECIPIENT");
         address zktls = vm.envAddress("ZKTLS_ADDRESS");
+        uint256 claimFee = vm.envUint("CLAIM_FEE");
         vm.startBroadcast(deployerPrivateKey);
 
         // 2. Deploy logic contract (implementation)
@@ -27,8 +28,9 @@ contract DeployScript is Script {
         bytes memory initializeData = abi.encodeWithSelector(
             PrimusTip.initialize.selector,
             deployerAddress, // Replace with the actual owner address if needed
-            feeRecent,
-            zktls
+            zktls,
+            feeRecipient,
+            claimFee
         );
 
         // 5. Deploy TransparentUpgradeableProxy

@@ -3,4 +3,30 @@ src = "src"
 out = "out"
 libs = ["lib"]
 solc = "0.8.26"
+via_ir = true
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+
+[rpc_endpoints]
+#testnet
+local = "http://127.0.0.1:8545"
+sepolia = "https://sepolia.infura.io/v3/b6bf7d3508c941499b10025c0776eaf8"
+bnbtestnet = "https://data-seed-prebsc-1-s3.binance.org:8545"
+opbnbtestnet = "https://opbnb-testnet-rpc.bnbchain.org"
+hekla = "https://rpc.hekla.taiko.xyz"
+holesky = "https://ethereum-holesky-rpc.publicnode.com"
+mumbai = "https://polygon-mumbai-bor.publicnode.com"
+scrollsepolia = "https://sepolia-rpc.scroll.io/"
+lineasepolia = "https://linea-sepolia.infura.io/v3/b6bf7d3508c941499b10025c0776eaf8"
+sophontestnet = "https://rpc.testnet.sophon.xyz"
+monadtestnet = "https://testnet-rpc.monad.xyz"
+
+#mainnet
+arbitrumone = "https://arb1.arbitrum.io/rpc"
+linea = "https://linea-mainnet.infura.io/v3/b6bf7d3508c941499b10025c0776eaf8"
+polygon = "https://polygon-rpc.com/"
+bsc = "https://bsc-dataseed.binance.org"
+opbnb = "https://opbnb-rpc.publicnode.com"
+ethereum = "https://rpc.ankr.com/eth"
+taiko = "https://rpc.mainnet.taiko.xyz"
+scroll = "https://rpc.scroll.io/"
+sophon = "https://rpc.sophon.xyz"

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.20;
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IPrimusZKTLS, Attestation } from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
@@ -19,15 +18,8 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     using JsonParser for string;
 
     event TipEvent(string idSource, string id, address tipper);
-    event FeeRecipientChanged(address indexed oldRecipient, address indexed newRecipient);
-    event WithdrawDelayChanged(uint256 oldDelay, uint256 newDelay);
     event ClaimEvent(address indexed recipient, string idSource, string id, address tipper, address tokenAddr, uint256 amount);
-    event AddIdSource(string _sourceName, string _url, string _jsonPath);
-    event FeeCollected(address indexed payer, address token, uint256 amount);
     event WithdrawEvent(address indexed tipper, address indexed tokenAddr, uint256 amount);
-    event ClaimFeeSet(uint256 indexed fee);
-    event SetPrimusZKTLS(address indexed primusZKTLS);
-    event RebateBalance(address indexed recipient, uint256 amount);
 
     // IPrimusZKTLS contract
     IPrimusZKTLS public primusZKTLS;
@@ -88,7 +80,6 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
 
         if (token.tokenType == NATIVE_TYPE && msg.value > recipient.amount) {
             payable(msg.sender).transfer(msg.value - recipient.amount);
-            emit RebateBalance(msg.sender, msg.value - recipient.amount);
         }
         
         TipRecord memory tipRecord = TipRecord({
@@ -126,7 +117,6 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         if (token.tokenType == NATIVE_TYPE && msg.value > totalAmount) {
             uint256 rebate = msg.value - totalAmount;
             payable(msg.sender).transfer(rebate);
-            emit RebateBalance(msg.sender, rebate);
         }
          
         for (uint256 i = 0; i < recipients.length; i++) {
@@ -212,7 +202,6 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
             url: url_,
             jsonPath: jsonPath_
         });
-        emit AddIdSource(sourceName_, url_, jsonPath_);
     }
 
     /**
@@ -225,7 +214,6 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
                 url: url_[i],
                 jsonPath: jsonPath_[i]
             });
-            emit AddIdSource(sourceName_[i], url_[i], jsonPath_[i]);
         }
     }
 
@@ -235,7 +223,6 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @param feeRecipient_ The fee recipient address.
     */
     function setFeeRecipient(address feeRecipient_) public onlyOwner {
-        emit FeeRecipientChanged(feeRecipient, feeRecipient_);
         feeRecipient = feeRecipient_;
     }
 
@@ -244,7 +231,6 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @param delay The withdraw delay Unit should be days.
     */
     function setWithdrawDelay(uint256 delay) public onlyOwner {
-        emit WithdrawDelayChanged(withdrawDelay, delay);
         withdrawDelay = delay;
     }
     /**
@@ -253,7 +239,6 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      */
     function setPrimusZKTLS(IPrimusZKTLS primusZKTLS_) public onlyOwner {
         primusZKTLS = primusZKTLS_;
-        emit SetPrimusZKTLS(address(primusZKTLS_));
     }
 
     /**
@@ -262,7 +247,6 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      */
     function setClaimFee(uint256 claimFee_) public onlyOwner {
         claimFee = claimFee_;
-        emit ClaimFeeSet(claimFee_);
     }
 
      // ========== internal  ==========
@@ -336,7 +320,6 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     function _chargeFee(uint256 fee) internal {
         if (fee > 0) {
             payable(feeRecipient).transfer(fee);
-            emit FeeCollected(msg.sender, address(0), fee);
         }
     }
 
