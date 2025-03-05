@@ -27,6 +27,7 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     event WithdrawEvent(address indexed tipper, address indexed tokenAddr, uint256 amount);
     event ClaimFeeSet(uint256 indexed fee);
     event SetPrimusZKTLS(address indexed primusZKTLS);
+    event RebateBalance(address indexed recipient, uint256 amount);
 
     // IPrimusZKTLS contract
     IPrimusZKTLS public primusZKTLS;
@@ -87,6 +88,7 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
 
         if (token.tokenType == NATIVE_TYPE && msg.value > recipient.amount) {
             payable(msg.sender).transfer(msg.value - recipient.amount);
+            emit RebateBalance(msg.sender, msg.value - recipient.amount);
         }
         
         TipRecord memory tipRecord = TipRecord({
@@ -122,9 +124,11 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         _transferFromUser(msg.sender, token, totalAmount, token.tokenType);
 
         if (token.tokenType == NATIVE_TYPE && msg.value > totalAmount) {
-            payable(msg.sender).transfer(msg.value - totalAmount);
+            uint256 rebate = msg.value - totalAmount;
+            payable(msg.sender).transfer(rebate);
+            emit RebateBalance(msg.sender, rebate);
         }
-        
+         
         for (uint256 i = 0; i < recipients.length; i++) {
             TipRecord memory tipRecord = TipRecord({
                 amount: recipients[i].amount,
@@ -141,12 +145,13 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     /**
      * @dev Recipient claims the tip tokens by the id source.
      */
-    function claimBySource(string calldata idSource, Attestation calldata att) public payable nonReentrant {
+    function claimBySource(string calldata idSource, Attestation calldata att) external payable nonReentrant {
         uint256 count = _claimBySource(idSource, att);
         require(count > 0, "no claim token");
-        require(msg.value >= claimFee*count, "Insufficient fee");
+        uint256 amount = claimFee*count;
+        require(msg.value >= amount, "Insufficient fee");
         // charge fee by Source
-        _chargeFee(claimFee*count);
+        _chargeFee(amount);
     }
 
     /**
@@ -154,8 +159,15 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      */
     function claimByMultiSource(string[] calldata idSources, Attestation[] calldata att) external payable  {
         require(idSources.length == att.length, "length not match");
+        uint256 value = msg.value;
         for (uint256 i = 0; i < idSources.length; i++) {
-            claimBySource(idSources[i], att[i]);
+            uint256 count = _claimBySource(idSources[i], att[i]);
+            require(count > 0, "no claim token");
+            uint256 amount = claimFee*count;
+            uint256 balance = value - amount;
+            require(balance >= 0, "Insufficient fee");
+            // charge fee by Source
+            _chargeFee(amount);
         } 
     }
 
@@ -311,8 +323,7 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
             IERC20 tipToken = IERC20(token.tokenAddress);
             require(tipToken.transfer(to, amount), "Transfer failed");
         } else if (token.tokenType == NATIVE_TYPE) {
-            (bool success, ) = to.call{value: amount}("");
-            require(success, "ETH transfer failed");
+            payable(to).transfer(amount);
         }
     }
 
