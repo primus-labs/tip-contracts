@@ -67,9 +67,19 @@ contract PrimusTipTest is Test {
         primusTip = new PrimusTip();
         primusTip.initialize(owner, primusZKTLS, feeRecipient, 0);
 
-        primusTip.addIdSource("tiktok", "https://www.tiktok.com/passport/web/account/info/", "$.data.username");
-        primusTip.addIdSource("x", "https://api.x.com/1.1/account/settings.json", "$.screen_name");
-        primusTip.addIdSource("github", "https://github.com", "$.id");
+        string[] memory sourceNames = new string[](3);
+        sourceNames[0] = "tiktok";
+        sourceNames[1] = "x";
+        sourceNames[2] = "github";
+        string[] memory urls = new string[](3);
+        urls[0] = "https://www.tiktok.com/passport/web/account/info/";
+        urls[1] = "https://api.x.com/1.1/account/settings.json";
+        urls[2] = "https://github.com";
+        string[] memory jsonPaths = new string[](3);
+        jsonPaths[0] = "$.data.username";
+        jsonPaths[1] = "$.screen_name";
+        jsonPaths[2] = "$.id";
+        primusTip.addBatchIdSource(sourceNames, urls, jsonPaths);
 
         ERC20Mock token = new ERC20Mock();
         erc20Token = address(token);

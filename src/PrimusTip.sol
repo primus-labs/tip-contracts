@@ -193,18 +193,6 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
 
 
     /**
-     * @dev Add the id attestation source.
-     */
-    function addIdSource(string memory sourceName_, string memory url_, string memory jsonPath_) external onlyOwner {
-        require(bytes(sourceName_).length > 0, "Empty source name");
-        require(bytes(idSourceCache[sourceName_].url).length == 0, "Source exists");
-        idSourceCache[sourceName_] = IdSource({
-            url: url_,
-            jsonPath: jsonPath_
-        });
-    }
-
-    /**
      * @dev Add the id attestation source in batch.
     */
     function addBatchIdSource(string[] memory sourceName_, string[] memory url_, string[] memory jsonPath_) external onlyOwner {
