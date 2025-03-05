@@ -260,6 +260,65 @@ contract PrimusTipTest is Test {
         }
     }
 
+    function test_TipperWithdraw_MultipleRecords_2() public {
+        for (uint i = 0; i < 25; i++) {
+            string memory idStr = string(abi.encodePacked("user", uintToString(i)));
+            TipRecipientInfo memory recipient = TipRecipientInfo(
+                "github", 
+                idStr,
+                1,
+                new uint256[](0)
+            );
+            vm.startPrank(tipper);
+            IERC20(erc20Token).approve(address(primusTip), recipient.amount);
+            uint256 tipperBalance = IERC20(erc20Token).balanceOf(tipper);
+            console.log("tipperBalance:%d", tipperBalance);
+            primusTip.tip(TipToken(0, erc20Token), recipient);
+            vm.stopPrank();
+        }
+
+        assertEq(IERC20(erc20Token).balanceOf(tipper), 975, "Balance not updated correctly1");
+
+        vm.warp(block.timestamp + primusTip.withdrawDelay() - 1 days); 
+         for (uint i = 25; i < 30; i++) {
+            string memory idStr = string(abi.encodePacked("user", uintToString(i)));
+            TipRecipientInfo memory recipient = TipRecipientInfo(
+                "github", 
+                idStr,
+                1,
+                new uint256[](0)
+            );
+            vm.startPrank(tipper);
+            IERC20(erc20Token).approve(address(primusTip), recipient.amount);
+            uint256 tipperBalance = IERC20(erc20Token).balanceOf(tipper);
+            console.log("tipperBalance:%d", tipperBalance);
+            primusTip.tip(TipToken(0, erc20Token), recipient);
+            vm.stopPrank();
+        }
+        vm.stopPrank();
+        
+
+        vm.warp(block.timestamp + primusTip.withdrawDelay() + 2 days);
+        
+        vm.prank(tipper);
+        TipRecipient[] memory recipients = new TipRecipient[](5);
+        TipRecipient memory recipient1 = TipRecipient("github", "user25");
+        TipRecipient memory recipient2 = TipRecipient("github", "user26");
+        TipRecipient memory recipient3 = TipRecipient("github", "user27");
+        TipRecipient memory recipient4 = TipRecipient("github", "user28");
+        TipRecipient memory recipient5 = TipRecipient("github", "user29");
+        recipients[0] = recipient1;
+        recipients[1] = recipient2;
+        recipients[2] = recipient3;
+        recipients[3] = recipient4;
+        recipients[4] = recipient5;
+
+        assertEq(IERC20(erc20Token).balanceOf(tipper), 970, "Balance not updated correctly2");
+        primusTip.tipperWithdraw(recipients);
+
+        assertEq(IERC20(erc20Token).balanceOf(tipper), 975, "Balance not updated correctly3");
+
+    }
     
     function test_TipperWithdraw_PartiallyExpired() public {
         TipToken memory token = TipToken(0, erc20Token);
@@ -393,6 +452,25 @@ contract PrimusTipTest is Test {
             "User2 record not found"
         );
     }
+
+     function test_TipBatch_100_Success() public {
+         for (uint i = 0; i < 100; i++) {
+            string memory idStr = string(abi.encodePacked("user", uintToString(i)));
+            TipRecipientInfo memory recipient = TipRecipientInfo(
+                "github", 
+                idStr,
+                1,
+                new uint256[](0)
+            );
+            vm.startPrank(tipper);
+            IERC20(erc20Token).approve(address(primusTip), recipient.amount);
+            uint256 tipperBalance = IERC20(erc20Token).balanceOf(tipper);
+            console.log("tipperBalance:%d", tipperBalance);
+            primusTip.tip(TipToken(0, erc20Token), recipient);
+            vm.stopPrank();
+        }
+    }
+
 
     function test_TipBatch_Failure_ZeroAmount() public {
         TipToken memory token = TipToken(0, erc20Token);
