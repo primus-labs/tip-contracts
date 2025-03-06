@@ -13,7 +13,7 @@ import "./utils/JsonParser.sol";
  * @dev The Primus Tip contract is used to manage users’ tip funds.
  *      Tippers can lock funds in contracts, and recipients can claim the tip funds after verifying their identities.
  */
-contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
+contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using StringUtils for string;
     using JsonParser for string;
 
@@ -58,7 +58,7 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     }
 
     
-    // ========== external  ==========
+    // ========== external functions ==========
     /**
      * @dev Tipper tip the token to the recipient.
      *      Tipper can tip erc20, NFT and native token.
@@ -149,17 +149,16 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      */
     function claimByMultiSource(string[] calldata idSources, Attestation[] calldata att) external payable nonReentrant {
         require(idSources.length == att.length, "length not match");
-        uint256 value = msg.value;
         uint256 totalAmount = 0;
         for (uint256 i = 0; i < idSources.length; i++) {
             uint256 count = _claimBySource(idSources[i], att[i]);
             require(count > 0, "no claim token");
             uint256 amount = claimFee*count;
             totalAmount += amount;
-            uint256 balance = value - amount;
-            require(balance >= 0, "Insufficient fee");
-        } 
+        }
+
          // charge fee by Source
+         require(msg.value >= totalAmount, "Insufficient fee");
          _chargeFee(totalAmount);
     }
 
@@ -192,6 +191,7 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     }
 
 
+    // ========== external onlyOwner functions ==========
     /**
      * @dev Add the id attestation source in batch.
     */
@@ -205,12 +205,11 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         }
     }
 
-    // ========== public  ==========
      /**
      * @dev Set the fee recipient address.
      * @param feeRecipient_ The fee recipient address.
     */
-    function setFeeRecipient(address feeRecipient_) public onlyOwner {
+    function setFeeRecipient(address feeRecipient_) external onlyOwner {
         feeRecipient = feeRecipient_;
     }
 
@@ -218,14 +217,14 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @dev set the withdraw delay.
      * @param delay The withdraw delay Unit should be days.
     */
-    function setWithdrawDelay(uint256 delay) public onlyOwner {
+    function setWithdrawDelay(uint256 delay) external onlyOwner {
         withdrawDelay = delay;
     }
     /**
      *  @dev set IPrimusZKTLS contract instance
      *  @param primusZKTLS_ The address of the IPrimusZKTLS contract
      */
-    function setPrimusZKTLS(IPrimusZKTLS primusZKTLS_) public onlyOwner {
+    function setPrimusZKTLS(IPrimusZKTLS primusZKTLS_) external onlyOwner {
         primusZKTLS = primusZKTLS_;
     }
 
@@ -233,11 +232,12 @@ contract PrimusTip is  Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      *  @dev set claim fee
      *  @param claimFee_ The submission fee
      */
-    function setClaimFee(uint256 claimFee_) public onlyOwner {
+    function setClaimFee(uint256 claimFee_) external onlyOwner {
         claimFee = claimFee_;
     }
 
-     // ========== internal  ==========
+
+     // ========== internal functions ==========
      /**
      * @dev Recipient claims the tip tokens by the id.
      * @param idSource The id source of the recipient.
