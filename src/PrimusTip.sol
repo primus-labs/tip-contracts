@@ -137,7 +137,6 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
      */
     function claimBySource(string calldata idSource, Attestation calldata att) external payable nonReentrant {
         uint256 count = _claimBySource(idSource, att);
-        require(count > 0, "no claim token");
         uint256 amount = claimFee*count;
         require(msg.value >= amount, "Insufficient fee");
         // charge fee by Source
@@ -152,7 +151,6 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         uint256 totalAmount = 0;
         for (uint256 i = 0; i < idSources.length; i++) {
             uint256 count = _claimBySource(idSources[i], att[i]);
-            require(count > 0, "no claim token");
             uint256 amount = claimFee*count;
             totalAmount += amount;
         }
