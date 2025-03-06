@@ -140,6 +140,47 @@ contract PrimusTipTest is Test {
         assertEq(recipientAddr.balance, 1 ether, "Native token transfer failed");
     }
 
+     function test_ClaimBySourceWithTiktok_Over_Expenses() public {
+        string memory idSource = "tiktok";
+        string memory id = "fksyuan";
+        
+        TipToken memory token = TipToken({
+            tokenType: 1,
+            tokenAddress: address(0)
+        });
+        uint256[] memory nftIds = new uint256[](0);
+        TipRecipientInfo memory recipientInfo = TipRecipientInfo({
+            idSource: idSource,
+            id: id,
+            amount: 2 ether,
+            nftIds: nftIds
+        });
+
+        vm.startPrank(owner);
+        primusTip.setClaimFee(1 ether);
+        vm.stopPrank();
+
+        vm.deal(tipper, 20 ether);
+        vm.startPrank(tipper);
+        primusTip.tip{value: 3 ether}(token, recipientInfo);
+        vm.stopPrank();
+
+        assertEq(tipper.balance, 18 ether, "Native token transfer failed");
+        assertEq(address(primusTip).balance, 2 ether, "Native token transfer failed");
+
+        Attestation memory attestation;
+        (attestation, idSource, id) = _createTiktokAttestation();
+
+        vm.deal(recipientAddr, 5 ether);
+        vm.startPrank(recipientAddr);
+        primusTip.claimBySource{value: 2 ether}(idSource, attestation);
+        vm.stopPrank();
+        console.log("recipientAddr.balance", recipientAddr.balance);
+        assertEq(recipientAddr.balance, 6 ether, "Native token transfer failed");
+    }
+
+
+
     function test_ClaimBySourceWithX() public {
         string memory idSource = "x";
         string memory id = "wenjun_yuan1";

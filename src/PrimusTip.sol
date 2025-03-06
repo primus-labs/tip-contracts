@@ -141,6 +141,10 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         require(msg.value >= amount, "Insufficient fee");
         // charge fee by Source
         _chargeFee(amount);
+        if (msg.value > amount) {
+            payable(msg.sender).transfer(msg.value - amount);
+        }
+        
     }
 
     /**
@@ -155,9 +159,13 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
             totalAmount += amount;
         }
 
-         // charge fee by Source
-         require(msg.value >= totalAmount, "Insufficient fee");
-         _chargeFee(totalAmount);
+        // charge fee by Source
+        require(msg.value >= totalAmount, "Insufficient fee");
+        _chargeFee(totalAmount);
+
+        if (msg.value > totalAmount) {
+            payable(msg.sender).transfer(msg.value - totalAmount);
+        }
     }
 
     /**
@@ -258,7 +266,6 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         require(parsePath.equals(idSourceCache[idSource].jsonPath), "json path not match");
 
         delete _tipRecords[idSource][id];
-
         for (uint256 i = 0; i < tipRecords.length; i++) {
             TipRecord memory record = tipRecords[i];
             _transferToken(att.recipient, record.tipToken, record.amount);
