@@ -133,6 +133,30 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     }
 
     /**
+     * @dev Recipient claims the tip tokens by the id source and tip index.
+     */
+    function claimBySourceAndTipIndex(string calldata idSource, Attestation calldata att, uint32 index) external payable nonReentrant {
+        require(msg.value >= claimFee, "Insufficient fee");
+        _chargeFee(claimFee);
+        string memory id = _checkClaim(idSource, att);
+
+        TipRecord[] storage tipRecords = _tipRecords[idSource][id];
+        require(index < tipRecords.length, "Insufficient fee");
+        TipRecord memory record = tipRecords[index];
+        if (index != tipRecords.length - 1) {
+            tipRecords[index] = tipRecords[tipRecords.length - 1];
+        }
+        tipRecords.pop();
+
+        _transferToken(att.recipient, record.tipToken, record.amount);
+        emit ClaimEvent(att.recipient, idSource, id, record.tipToken.tokenAddress, record.tipper, record.amount);
+
+        if (msg.value > claimFee) {
+            payable(msg.sender).transfer(msg.value - claimFee);
+        }
+    }
+
+    /**
      * @dev Recipient claims the tip tokens by the id source.
      */
     function claimBySource(string calldata idSource, Attestation calldata att) external payable nonReentrant {
@@ -144,7 +168,6 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         if (msg.value > amount) {
             payable(msg.sender).transfer(msg.value - amount);
         }
-        
     }
 
     /**
@@ -244,12 +267,13 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
 
 
      // ========== internal functions ==========
-     /**
-     * @dev Recipient claims the tip tokens by the id.
+
+    /**
+     * @dev Check attestaion.
      * @param idSource The id source of the recipient.
      * @param att The attestation of the recipient.
      */
-    function _claimBySource(string calldata idSource, Attestation calldata att) internal returns (uint256) {
+    function _checkClaim(string calldata idSource, Attestation calldata att) internal view returns (string memory) {
         string memory urlStr = idSourceCache[idSource].url;
         require(bytes(urlStr).length > 0, "id source not exist");
         require(att.recipient != address(0), "to addr zero");
@@ -258,12 +282,22 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         primusZKTLS.verifyAttestation(att);
         string memory sourceStr = extractBaseUrl(att.request.url);
         require(urlStr.equals(sourceStr), "id source not match");
-
-        string memory id = att.data.extractValue(att.reponseResolve[0].keyName);
-        TipRecord[] memory tipRecords = _tipRecords[idSource][id];
-        require(tipRecords.length > 0, "no claim token");
         string memory parsePath = att.reponseResolve[0].parsePath;
         require(parsePath.equals(idSourceCache[idSource].jsonPath), "json path not match");
+
+        string memory id = att.data.extractValue(att.reponseResolve[0].keyName);
+        return id;
+    }
+
+     /**
+     * @dev Recipient claims the tip tokens by the id.
+     * @param idSource The id source of the recipient.
+     * @param att The attestation of the recipient.
+     */
+    function _claimBySource(string calldata idSource, Attestation calldata att) internal returns (uint256) {
+        string memory id = _checkClaim(idSource, att);
+        TipRecord[] memory tipRecords = _tipRecords[idSource][id];
+        require(tipRecords.length > 0, "no claim token");
 
         delete _tipRecords[idSource][id];
         for (uint256 i = 0; i < tipRecords.length; i++) {
