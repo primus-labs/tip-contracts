@@ -6,8 +6,8 @@ import {PrimusTip} from "../src/PrimusTip.sol";
 import "forge-std/Test.sol";
 
 // script/Upgrade.s.sol
-import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
-import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ProxyAdmin} from  "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import {TransparentUpgradeableProxy, ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 contract UpgradeScript is Script {
     function run() external {
@@ -18,13 +18,12 @@ contract UpgradeScript is Script {
         PrimusTip newLogic = new PrimusTip();
 
         // 2. Retrieve the ProxyAdmin address and Proxy contract address
-        address proxyAdminAddr = address(0x11111); // Replace with the actual ProxyAdmin address
-        address proxyAddr = address(0x2222);           // Replace with the actual Proxy address
+        address proxyAdminAddr = address(0x7424af125ca3E93b56BdC869F9D86Ef20666dF55); // Replace with the actual ProxyAdmin address
+        address proxyAddr = address(0xcd1Ed9C1595A7e9DADe76808dd5e66aA95940A92);           // Replace with the actual Proxy address
 
         // 3. Call the upgrade method of ProxyAdmin
         ProxyAdmin proxyAdmin = ProxyAdmin(proxyAdminAddr);
-        ITransparentUpgradeableProxy proxy = ITransparentUpgradeableProxy(proxyAddr);
-        proxyAdmin.upgradeAndCall(proxy, address(newLogic),"");
+        proxyAdmin.upgradeAndCall(ITransparentUpgradeableProxy(proxyAddr), address(newLogic), "");
 
         console.log("Upgraded Proxy to New Logic Address: ", address(newLogic));
 

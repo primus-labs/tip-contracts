@@ -21,9 +21,6 @@ contract DeployScript is Script {
         // 2. Deploy logic contract (implementation)
         PrimusTip logic = new PrimusTip();
 
-        // 3. Deploy ProxyAdmin
-        ProxyAdmin proxyAdmin = new ProxyAdmin(deployerAddress);
-
         // 4. Prepare initialization data
         bytes memory initializeData = abi.encodeWithSelector(
             PrimusTip.initialize.selector,
@@ -36,13 +33,12 @@ contract DeployScript is Script {
         // 5. Deploy TransparentUpgradeableProxy
         TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
             address(logic),
-            address(proxyAdmin),
+            deployerAddress,
             initializeData
         );
 
         // 6. Log contract addresses
         console.log("Logic Contract Address: ", address(logic));
-        console.log("Proxy Admin Address: ", address(proxyAdmin));
         console.log("Proxy Contract Address: ", address(proxy));
 
         vm.stopBroadcast();
