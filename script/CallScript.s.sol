@@ -11,7 +11,7 @@ contract CallScript is Script {
         //address senderAddress = vm.addr(senderPrivateKey);
         vm.startBroadcast(senderPrivateKey);
 
-        PrimusTip primusTip = PrimusTip(address(0x8F796FbE77E0c7afb695d3F7B5283989299069b9));
+        PrimusTip primusTip = PrimusTip(address(0xcd1Ed9C1595A7e9DADe76808dd5e66aA95940A92));
 
         string[] memory sourceNames = new string[](2);
         sourceNames[0] = "tiktok";

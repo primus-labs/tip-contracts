@@ -118,7 +118,7 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
             uint256 rebate = msg.value - totalAmount;
             payable(msg.sender).transfer(rebate);
         }
-         
+
         for (uint256 i = 0; i < recipients.length; i++) {
             TipRecord memory tipRecord = TipRecord({
                 amount: recipients[i].amount,
@@ -141,7 +141,7 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         string memory id = _checkClaim(idSource, att);
 
         TipRecord[] storage tipRecords = _tipRecords[idSource][id];
-        require(index < tipRecords.length, "Insufficient fee");
+        require(index < tipRecords.length, "index out of bound");
         TipRecord memory record = tipRecords[index];
         if (index != tipRecords.length - 1) {
             tipRecords[index] = tipRecords[tipRecords.length - 1];
