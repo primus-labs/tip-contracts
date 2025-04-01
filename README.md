@@ -26,16 +26,10 @@ $ forge fmt
 
 ```shell
 # Deploy
-forge script script/Deploy.s.sol:DeployScript \
-  --rpc-url $RPC_URL \
-  --private-key $PRIVATE_KEY \
-  --broadcast
+forge script script/DeployScript.s.sol --rpc-url $RPC_URL --broadcast
 
 # Upgrade
-forge script script/Upgrade.s.sol:UpgradeScript \
-  --rpc-url $RPC_URL \
-  --private-key $PRIVATE_KEY \
-  --broadcast
+forge script script/UpgradeScript.s.sol --rpc-url $RPC_URL --broadcast
 ```
 
 ### Gas Snapshots

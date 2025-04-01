@@ -18,7 +18,7 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using JsonParser for string;
 
     event TipEvent(string idSource, string id, address tipper, address tokenAddr, uint256 amount, uint64 tipTime);
-    event ClaimEvent(address indexed recipient, string idSource, string id, address tipper, address tokenAddr, uint256 amount, uint64 tipTime);
+    event ClaimEvent(address indexed recipient, uint64 claimTime, string idSource, string id, address tipper, address tokenAddr, uint256 amount, uint64 tipTime);
     event WithdrawEvent(address indexed tipper, address indexed tokenAddr, uint256 amount);
 
     // IPrimusZKTLS contract
@@ -154,7 +154,7 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         tipRecords.pop();
 
         _transferToken(att.recipient, record.tipToken, record.amount);
-        emit ClaimEvent(att.recipient, idSource, id, record.tipper, record.tipToken.tokenAddress, record.amount, record.timestamp);
+        emit ClaimEvent(att.recipient, (uint64)(block.timestamp), idSource, id, record.tipper, record.tipToken.tokenAddress, record.amount, record.timestamp);
 
         if (msg.value > claimFee) {
             payable(msg.sender).transfer(msg.value - claimFee);
@@ -308,7 +308,7 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         for (uint256 i = 0; i < tipRecords.length; i++) {
             TipRecord memory record = tipRecords[i];
             _transferToken(att.recipient, record.tipToken, record.amount);
-            emit ClaimEvent(att.recipient, idSource, id, record.tipper, record.tipToken.tokenAddress, record.amount, record.timestamp);
+            emit ClaimEvent(att.recipient, (uint64)(block.timestamp), idSource, id, record.tipper, record.tipToken.tokenAddress, record.amount, record.timestamp);
         }
         return tipRecords.length;
     }
