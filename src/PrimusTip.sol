@@ -287,10 +287,13 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         primusZKTLS.verifyAttestation(att);
         string memory sourceStr = extractBaseUrl(att.request.url);
         require(urlStr.equals(sourceStr), "id source not match");
+        require(att.reponseResolve.length == 1, "reponseResolve not equal 1");
         string memory parsePath = att.reponseResolve[0].parsePath;
         require(parsePath.equals(idSourceCache[idSource].jsonPath), "json path not match");
+        string memory conditionOp = att.attConditions.extractValue("op");
+        require(conditionOp.equals("STREQ"), "op not match");
 
-        string memory id = att.data.extractValue(att.reponseResolve[0].keyName);
+        string memory id = att.attConditions.extractValue("value");
         return id;
     }
 
