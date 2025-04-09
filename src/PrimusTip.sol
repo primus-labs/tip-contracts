@@ -19,7 +19,7 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
 
     event TipEvent(string idSource, string id, address tipper, address tokenAddr, uint256 amount, uint64 tipTime);
     event ClaimEvent(address indexed recipient, uint64 claimTime, string idSource, string id, address tipper, address tokenAddr, uint256 amount, uint64 tipTime);
-    event WithdrawEvent(address indexed tipper, address indexed tokenAddr, uint256 amount);
+    event WithdrawEvent(uint64 withdrawTime, string idSource, string id, address tipper, address tokenAddr, uint256 amount, uint64 tipTime);
 
     // IPrimusZKTLS contract
     IPrimusZKTLS public primusZKTLS;
@@ -203,7 +203,8 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         for (uint256 i = 0; i < tipRecipients.length; i++) {
             TipRecord[] storage records = _tipRecords[tipRecipients[i].idSource][tipRecipients[i].id];
             require(records.length > 0, "no pending withdrawals");
-            for (uint256 j = 0; j < records.length; j++) {
+            uint256 j = 0;
+            while (j < records.length) {
                 TipRecord memory tipRecord = records[j];
                 if (isExpired(tipRecord.timestamp)) {
                      // Remove records
@@ -211,7 +212,9 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
                     records.pop();
 
                     _transferToken(tipRecord.tipper, tipRecord.tipToken, tipRecord.amount);
-                    emit WithdrawEvent(tipRecord.tipper, tipRecord.tipToken.tokenAddress, tipRecord.amount);
+                    emit WithdrawEvent((uint64)(block.timestamp), tipRecipients[i].idSource, tipRecipients[i].id, tipRecord.tipper, tipRecord.tipToken.tokenAddress, tipRecord.amount, tipRecord.timestamp);
+                } else {
+                    j++;
                 }
             }
         }
