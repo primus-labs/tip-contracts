@@ -273,11 +273,14 @@ contract PrimusTipTest is Test {
         uint256 initialBalance = IERC20(erc20Token).balanceOf(tipper);
         console.log("initialBalance", initialBalance);    
        
-        vm.prank(tipper);
-        TipRecipient[] memory recipients = new TipRecipient[](1);
-        TipRecipient memory recipient = TipRecipient("tiktok", "user123");
+        TipWithdrawInfo[] memory recipients = new TipWithdrawInfo[](1);
+        TipRecord memory tipRecord = primusTip.getTipRecords(TipRecipient("tiktok", "user123"))[0];
+
+        TipWithdrawInfo memory recipient = TipWithdrawInfo("tiktok", "user123", tipRecord.timestamp);
         recipients[0] = recipient;
+        vm.startPrank(tipper);
         primusTip.tipperWithdraw(recipients);
+        vm.stopPrank();
 
         assertEq(
             IERC20(erc20Token).balanceOf(tipper),
@@ -313,21 +316,25 @@ contract PrimusTipTest is Test {
         vm.warp(block.timestamp + primusTip.withdrawDelay() + 1);
         
         
-        vm.prank(tipper);
-        TipRecipient[] memory recipients = new TipRecipient[](5);
-        TipRecipient memory recipient1 = TipRecipient("github", "user0");
-        TipRecipient memory recipient2 = TipRecipient("github", "user1");
-        TipRecipient memory recipient3 = TipRecipient("github", "user2");
-        TipRecipient memory recipient4 = TipRecipient("github", "user3");
-        TipRecipient memory recipient5 = TipRecipient("github", "user4");
+        //vm.prank(tipper);
+        TipWithdrawInfo[] memory recipients = new TipWithdrawInfo[](5);
+        TipRecord memory tipRecord = primusTip.getTipRecords(TipRecipient("github", "user0"))[0];
+
+        TipWithdrawInfo memory recipient1 = TipWithdrawInfo("github", "user0", tipRecord.timestamp);
+        TipWithdrawInfo memory recipient2 = TipWithdrawInfo("github", "user1", tipRecord.timestamp);
+        TipWithdrawInfo memory recipient3 = TipWithdrawInfo("github", "user2", tipRecord.timestamp);
+        TipWithdrawInfo memory recipient4 = TipWithdrawInfo("github", "user3", tipRecord.timestamp);
+        TipWithdrawInfo memory recipient5 = TipWithdrawInfo("github", "user4", tipRecord.timestamp);
         recipients[0] = recipient1;
         recipients[1] = recipient2;
         recipients[2] = recipient3;
         recipients[3] = recipient4;
         recipients[4] = recipient5;
 
+        vm.startPrank(tipper);
         assertEq(IERC20(erc20Token).balanceOf(tipper), 500, "Balance not updated correctly");
         primusTip.tipperWithdraw(recipients);
+        vm.stopPrank();
 
         assertEq(IERC20(erc20Token).balanceOf(tipper), 1000, "Balance not updated correctly");
 
@@ -377,21 +384,25 @@ contract PrimusTipTest is Test {
 
         vm.warp(block.timestamp + primusTip.withdrawDelay() + 2 days);
         
-        vm.prank(tipper);
-        TipRecipient[] memory recipients = new TipRecipient[](5);
-        TipRecipient memory recipient1 = TipRecipient("github", "user25");
-        TipRecipient memory recipient2 = TipRecipient("github", "user26");
-        TipRecipient memory recipient3 = TipRecipient("github", "user27");
-        TipRecipient memory recipient4 = TipRecipient("github", "user28");
-        TipRecipient memory recipient5 = TipRecipient("github", "user29");
+        // vm.prank(tipper);
+        TipWithdrawInfo[] memory recipients = new TipWithdrawInfo[](5);
+        TipRecord memory tipRecord = primusTip.getTipRecords(TipRecipient("github", "user25"))[0];
+
+        TipWithdrawInfo memory recipient1 = TipWithdrawInfo("github", "user25", tipRecord.timestamp);
+        TipWithdrawInfo memory recipient2 = TipWithdrawInfo("github", "user26", tipRecord.timestamp);
+        TipWithdrawInfo memory recipient3 = TipWithdrawInfo("github", "user27", tipRecord.timestamp);
+        TipWithdrawInfo memory recipient4 = TipWithdrawInfo("github", "user28", tipRecord.timestamp);
+        TipWithdrawInfo memory recipient5 = TipWithdrawInfo("github", "user29", tipRecord.timestamp);
         recipients[0] = recipient1;
         recipients[1] = recipient2;
         recipients[2] = recipient3;
         recipients[3] = recipient4;
         recipients[4] = recipient5;
 
+        vm.startPrank(tipper);
         assertEq(IERC20(erc20Token).balanceOf(tipper), 970, "Balance not updated correctly2");
         primusTip.tipperWithdraw(recipients);
+        vm.stopPrank();
 
         assertEq(IERC20(erc20Token).balanceOf(tipper), 975, "Balance not updated correctly3");
 
@@ -438,8 +449,9 @@ contract PrimusTipTest is Test {
 
         uint256 initialBalance = IERC20(erc20Token).balanceOf(tipper);
     
-        TipRecipient[] memory recipients = new TipRecipient[](1);
-        TipRecipient memory recipient = TipRecipient("tiktok", "expired_user");
+        TipWithdrawInfo[] memory recipients = new TipWithdrawInfo[](1);
+        TipRecord memory tipRecord = primusTip.getTipRecords(TipRecipient("tiktok", "expired_user"))[0];
+        TipWithdrawInfo memory recipient = TipWithdrawInfo("tiktok", "expired_user", tipRecord.timestamp);
         recipients[0] = recipient;
         vm.prank(tipper);
         primusTip.tipperWithdraw(recipients);

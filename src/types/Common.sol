@@ -27,6 +27,15 @@ struct TipRecipient {
     string id;
 }
 
+struct TipWithdrawInfo {
+    // The platform of the account.
+    string idSource;
+    // The unique identifier of the account.
+    string id;
+    // The tip timstamp.
+    uint64 tipTimestamp;
+}
+
 struct TipRecord {
     // The amount of token when token is erc20 and native.
     uint256 amount;

@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IPrimusZKTLS, Attestation } from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
-import {TipToken, TipRecipientInfo, TipRecipient, TipRecord, IdSource} from "./types/Common.sol";
+import {TipToken, TipRecipientInfo, TipRecipient, TipRecord, IdSource, TipWithdrawInfo} from "./types/Common.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "./utils/StringUtils.sol";
 import "./utils/JsonParser.sol";
@@ -199,25 +199,27 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     /**
      * @dev The tipper withdraws tokens that have not been claimed within the specified time period.
      */
-    function tipperWithdraw(TipRecipient[] calldata tipRecipients) external nonReentrant {
+    function tipperWithdraw(TipWithdrawInfo[] calldata tipRecipients) external nonReentrant {
+        bool isWithdrawn = false;
         for (uint256 i = 0; i < tipRecipients.length; i++) {
             TipRecord[] storage records = _tipRecords[tipRecipients[i].idSource][tipRecipients[i].id];
-            require(records.length > 0, "no pending withdrawals");
             uint256 j = 0;
             while (j < records.length) {
                 TipRecord memory tipRecord = records[j];
-                if (isExpired(tipRecord.timestamp)) {
+                if (msg.sender == tipRecord.tipper && tipRecord.timestamp == tipRecipients[i].tipTimestamp && isExpired(tipRecord.timestamp)) {
                      // Remove records
                     records[j] = records[records.length - 1];
                     records.pop();
 
                     _transferToken(tipRecord.tipper, tipRecord.tipToken, tipRecord.amount);
+                    isWithdrawn = true;
                     emit WithdrawEvent((uint64)(block.timestamp), tipRecipients[i].idSource, tipRecipients[i].id, tipRecord.tipper, tipRecord.tipToken.tokenAddress, tipRecord.amount, tipRecord.timestamp);
                 } else {
                     j++;
                 }
             }
         }
+        require(isWithdrawn, "no pending withdrawals");
     }
 
     /**
