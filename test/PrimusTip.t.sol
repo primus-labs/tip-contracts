@@ -6,7 +6,8 @@ import "forge-std/console.sol";
 import "src/PrimusTip.sol";
 import "src/types/Common.sol";
 import "src/utils/StringUtils.sol";
-
+import "./PrimusTestNFT.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 import {
     Attestation as PrimusAttestation,
@@ -60,11 +61,13 @@ contract PrimusTipTest is Test {
     address public user = address(0x789);
     address public recipientAddr = stringToAddress("0x7ab44DE0156925fe0c24482a2cDe48C465e47573");
     address public erc20Token = address(4);
+    address public nftTokenAddr = address(5);
     
     function setUp() public {
         vm.startPrank(owner);
         primusZKTLS = new PrimusZKTLSMock();
         primusTip = new PrimusTip();
+        console.log("primusTip=", address(primusTip));
         primusTip.initialize(owner, primusZKTLS, feeRecipient, 0);
 
         string[] memory sourceNames = new string[](3);
@@ -84,6 +87,12 @@ contract PrimusTipTest is Test {
         ERC20Mock token = new ERC20Mock();
         erc20Token = address(token);
         token.mint(tipper, 1000); 
+
+        PrimusTestNFT nftToken = new PrimusTestNFT(owner);
+        nftTokenAddr = address(nftToken);
+        for (uint i = 0; i < 5; i++) {
+            nftToken.safeMint(tipper, "uri");
+        }
         vm.stopPrank();
     }
 
@@ -531,6 +540,80 @@ contract PrimusTipTest is Test {
         }
     }
 
+    function test_TipNFT() public {
+        TipToken memory token = TipToken({
+            tokenType: 2,
+            tokenAddress: nftTokenAddr
+        });
+
+        uint256[] memory nftIds = new uint256[](1);
+        nftIds[0] = 0;
+        TipRecipientInfo memory recipientInfo = TipRecipientInfo({
+            idSource: "tiktok",
+            id: "user123",
+            amount: 0,
+            nftIds: nftIds
+        });
+
+        vm.startPrank(tipper);
+        IERC721(nftTokenAddr).approve(address(primusTip), nftIds[0]);
+        primusTip.tip(token, recipientInfo);
+        vm.stopPrank();
+
+        console.log("test_TipNFT record=", primusTip.getTipRecords(TipRecipient("tiktok", "user123"))[0].nftIds[0]);
+        assertEq(
+            primusTip.getTipRecords(TipRecipient("tiktok", "user123"))[0].nftIds[0],
+            0,
+            "User record not found"
+        );
+
+        console.log("test_TipNFT owner=", IERC721(nftTokenAddr).ownerOf(0));
+        assertEq(
+            IERC721(nftTokenAddr).ownerOf(0),
+            address(primusTip),
+            "token owner incorrect"
+        );
+    }
+    function test_TipBatchNFT() public {
+        TipToken memory token = TipToken({
+            tokenType: 2,
+            tokenAddress: nftTokenAddr
+        });
+        TipRecipientInfo[] memory recipientInfos  = new TipRecipientInfo[](5);
+        for (uint i = 0; i < 5; i++) {
+            uint256[] memory nftIds = new uint256[](1);
+            nftIds[0] = i;
+            string memory idStr = string(abi.encodePacked("user", uintToString(i)));
+            recipientInfos[i] = TipRecipientInfo({
+                idSource: "tiktok",
+                id: idStr,
+                amount: 0,
+                nftIds: nftIds
+            });
+        }
+
+        vm.startPrank(tipper);
+        IERC721(nftTokenAddr).setApprovalForAll(address(primusTip), true);
+        primusTip.tipBatch(token, recipientInfos);
+        vm.stopPrank();
+
+        for (uint i = 0; i < 5; i++) {
+            string memory idStr = string(abi.encodePacked("user", uintToString(i)));
+            console.log("test_TipNFT record=", primusTip.getTipRecords(TipRecipient("tiktok", idStr))[0].nftIds[0]);
+            assertEq(
+                primusTip.getTipRecords(TipRecipient("tiktok", idStr))[0].nftIds[0],
+                i,
+                "User record not found"
+            );
+
+            console.log("test_TipNFT owner=", IERC721(nftTokenAddr).ownerOf(i));
+            assertEq(
+                IERC721(nftTokenAddr).ownerOf(i),
+                address(primusTip),
+                "token owner incorrect"
+            );
+        }
+    }
 
     function test_TipBatch_Failure_ZeroAmount() public {
         TipToken memory token = TipToken(0, erc20Token);
