@@ -41,6 +41,24 @@ contract DeployScript is Script {
         console.log("Logic Contract Address: ", address(logic));
         console.log("Proxy Contract Address: ", address(proxy));
 
+        string[] memory sourceNames = new string[](4);
+        sourceNames[0] = "tiktok";
+        sourceNames[1] = "x";
+        sourceNames[2] = "google account";
+        sourceNames[3] = "xiaohongshu";
+        string[] memory urls = new string[](4);
+        urls[0] = "https://www.tiktok.com/passport/web/account/info/";
+        urls[1] = "https://api.x.com/1.1/account/settings.json";
+        urls[2] = "https://developers.google.com/_d/profile/user";
+        urls[3] = "https://edith.xiaohongshu.com/api/sns/web/v2/user/me";
+        string[] memory jsonPaths = new string[](4);
+        jsonPaths[0] = "$.data.username";
+        jsonPaths[1] = "$.screen_name";
+        jsonPaths[2] = "$[2]";
+        jsonPaths[3] = "$.data.red_id";
+        PrimusTip primusTip = PrimusTip(address(proxy));
+        primusTip.addBatchIdSource(sourceNames, urls, jsonPaths);
+
         vm.stopBroadcast();
     }
 }
