@@ -12,7 +12,11 @@ contract CallScript is Script {
         //address senderAddress = vm.addr(senderPrivateKey);
         vm.startBroadcast(senderPrivateKey);
 
-        PrimusTip primusTip = PrimusTip(address(0xcd1Ed9C1595A7e9DADe76808dd5e66aA95940A92));
+        // monad testnet
+        // PrimusTip primusTip = PrimusTip(address(0xcd1Ed9C1595A7e9DADe76808dd5e66aA95940A92));
+
+        // bsc testnet
+        PrimusTip primusTip = PrimusTip(address(0x1C5bfc91789DB3130A07a06407E02745945C3218));
 
         // string[] memory sourceNames = new string[](2);
         // sourceNames[0] = "tiktok";
@@ -42,7 +46,7 @@ contract CallScript is Script {
 
         // primusTip.addBatchIdSource(sourceNames, urls, jsonPaths);
 
-        //primusTip.setWithdrawDelay(30 days);
+        // primusTip.setWithdrawDelay(300);
         console.log("withdrawDelay: ", primusTip.withdrawDelay());
         console.log("feeRecipient: ", primusTip.feeRecipient());
         console.log("fee: ", primusTip.claimFee());
