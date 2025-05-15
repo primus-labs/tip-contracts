@@ -21,6 +21,7 @@ scrollsepolia = "https://sepolia-rpc.scroll.io/"
 lineasepolia = "https://linea-sepolia.infura.io/v3/b6bf7d3508c941499b10025c0776eaf8"
 sophontestnet = "https://rpc.testnet.sophon.xyz"
 monadtestnet = "https://testnet-rpc.monad.xyz"
+pharostestnet = "https://testnet.dplabs-internal.com"
 
 #mainnet
 arbitrumone = "https://arb1.arbitrum.io/rpc"

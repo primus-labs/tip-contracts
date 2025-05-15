@@ -18,8 +18,8 @@ contract UpgradeScript is Script {
         PrimusTip newLogic = new PrimusTip();
 
         // 2. Retrieve the ProxyAdmin address and Proxy contract address
-        address proxyAdminAddr = address(0x7424af125ca3E93b56BdC869F9D86Ef20666dF55); // Replace with the actual ProxyAdmin address
-        address proxyAddr = address(0xcd1Ed9C1595A7e9DADe76808dd5e66aA95940A92);           // Replace with the actual Proxy address
+        address proxyAdminAddr = address(0xb910D329B9d3ecEdd636DD99aDc82d5a6B270AF9); // Replace with the actual ProxyAdmin address
+        address proxyAddr = address(0x1fb86db904caF7c12100EA64024E5dfd7505E484);           // Replace with the actual Proxy address
 
         // 3. Call the upgrade method of ProxyAdmin
         ProxyAdmin proxyAdmin = ProxyAdmin(proxyAdminAddr);

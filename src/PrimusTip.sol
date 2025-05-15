@@ -360,7 +360,9 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     */
     function _chargeFee(uint256 fee) internal {
         if (fee > 0) {
-            payable(feeRecipient).transfer(fee);
+            // payable(feeRecipient).transfer(fee);
+            (bool sent,) = feeRecipient.call{value: fee}("");
+            require(sent, "Failed to send fee");
         }
     }
 
