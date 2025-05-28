@@ -281,7 +281,7 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         require(att.reponseResolve.length > 0, "No response key");
 
         primusZKTLS.verifyAttestation(att);
-        string memory sourceStr = extractBaseUrl(att.request.url);
+        string memory sourceStr = StringUtils.extractBaseUrl(att.request.url);
         require(urlStr.equals(sourceStr), "id source not match");
         require(att.reponseResolve.length == 1, "reponseResolve not equal 1");
         string memory parsePath = att.reponseResolve[0].parsePath;
@@ -363,27 +363,6 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
             (bool sent,) = feeRecipient.call{value: fee}("");
             require(sent, "Failed to send fee");
         }
-    }
-
-     /**
-     * @dev Extract the base URL (ignoring query parameters)
-     * @param url The full URL
-     * @return The base URL without query parameters
-     */
-    function extractBaseUrl(string memory url) internal pure returns (string memory) {
-        bytes memory urlBytes = bytes(url);
-        uint256 queryStart = urlBytes.length;
-        for (uint256 i = 0; i < urlBytes.length; i++) {
-            if (urlBytes[i] == "?") {
-                queryStart = i;
-                break;
-            }
-        }
-        bytes memory baseUrlBytes = new bytes(queryStart);
-        for (uint256 i = 0; i < queryStart; i++) {
-            baseUrlBytes[i] = urlBytes[i];
-        }
-        return string(baseUrlBytes);
     }
 
     /**

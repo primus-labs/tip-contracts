@@ -2,6 +2,13 @@
 pragma solidity ^0.8.20;
 
 library StringUtils {
+    /**
+     * Compares two strings for equality.
+     *
+     * @param str1 The first string to compare.
+     * @param str2 The second string to compare.
+     * @return True if the strings are equal, false otherwise.
+     */
     function equals(string memory str1, string memory str2) internal pure returns (bool) {
         return keccak256(abi.encodePacked(str1)) == keccak256(abi.encodePacked(str2));
     }
@@ -12,7 +19,7 @@ library StringUtils {
         if (prefixBytes.length > strBytes.length) {
             return false;
         }
-        for (uint i = 0; i < prefixBytes.length; i++) {
+        for (uint256 i = 0; i < prefixBytes.length; i++) {
             if (strBytes[i] != prefixBytes[i]) {
                 return false;
             }
@@ -43,13 +50,32 @@ library StringUtils {
         return true;
     }
 
-
-
     function extractStr(string memory original, bytes1 symbol) internal pure returns (string memory) {
         bytes memory urlBytes = bytes(original);
         uint256 queryStart = urlBytes.length;
         for (uint256 i = 0; i < urlBytes.length; i++) {
             if (urlBytes[i] == symbol) {
+                queryStart = i;
+                break;
+            }
+        }
+        bytes memory baseUrlBytes = new bytes(queryStart);
+        for (uint256 i = 0; i < queryStart; i++) {
+            baseUrlBytes[i] = urlBytes[i];
+        }
+        return string(baseUrlBytes);
+    }
+
+    /**
+     * Extract the base URL (ignoring query parameters)
+     * @param url The full URL
+     * @return The base URL without query parameters
+     */
+    function extractBaseUrl(string memory url) internal pure returns (string memory) {
+        bytes memory urlBytes = bytes(url);
+        uint256 queryStart = urlBytes.length;
+        for (uint256 i = 0; i < urlBytes.length; i++) {
+            if (urlBytes[i] == "?") {
                 queryStart = i;
                 break;
             }
