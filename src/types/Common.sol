@@ -3,7 +3,7 @@
 pragma solidity ^0.8.20;
 
 struct TipToken {
-    // tokenType is erc20, nft or native. The native is native token.
+    // tokenType is erc20, nft or native. 0 means erc20, 1 means native and 2 means nft.
     uint32 tokenType;
     // Token Address.
     address tokenAddress;
@@ -54,4 +54,40 @@ struct IdSource {
     string url;
     // The json path of the account.
     string jsonPath;
+}
+
+struct RESendParam {
+    // Red envelope type, 0 means random red envelope, 1 means average red envelope.
+    uint32 reType;
+    // number indicates how many people the red envelope is sent to.
+    uint32 number;
+    // The total amount of the red envelope.
+    uint256 amount;
+    // A contract used to check whether you are eligible to receive a red envelope.
+    address checkContract;
+}
+
+struct RERecord {
+    // The red envelope id.
+    bytes32 id;
+    // The token type, tokenType is erc20 or native.
+    uint32 tokenType;
+    // Red envelope type, 0 means random red envelope, 1 means average red envelope.
+    uint32 reType;
+    // number indicates how many people the red envelope is sent to.
+    uint32 number;
+    // remainingNumber indicates how many people are left to receive the red envelope.
+    uint32 remainingNumber;
+    // Time when the red envelope was sent.
+    uint64 timestamp;
+    // Token Address.
+    address tokenAddress;
+    // The red envelope sender.
+    address reSender;
+    // A contract used to check whether you are eligible to receive a red envelope.
+    address checkContract;
+    // The total amount of the red envelope.
+    uint256 amount;
+    // The remaining amount of the red envelope.
+    uint256 remainingAmount;
 }
