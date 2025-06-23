@@ -26,7 +26,16 @@ contract CallScript is Script {
         // PrimusTip primusTip = PrimusTip(address(0x1C5bfc91789DB3130A07a06407E02745945C3218));
 
         // bsc mainnet
-        PrimusTip primusTip = PrimusTip(address(0x1fb86db904caF7c12100EA64024E5dfd7505E484));
+        // PrimusTip primusTip = PrimusTip(address(0x1fb86db904caF7c12100EA64024E5dfd7505E484));
+
+        // pharos testnet
+        PrimusTip primusTip = PrimusTip(address(0xD17512B7EC12880Bd94Eca9d774089fF89805F02));
+
+        // base sepolia testnet
+        // PrimusTip primusTip = PrimusTip(address(0x4E78940F0019EbAEDc6F4995D7B8ABf060F7a341));
+
+        // base mainnet
+        // PrimusTip primusTip = PrimusTip(address(0xa2e0700a269Be3158c81E4739518b324d4398588));
 
         // string[] memory sourceNames = new string[](2);
         // sourceNames[0] = "tiktok";
@@ -56,14 +65,15 @@ contract CallScript is Script {
 
         // primusTip.addBatchIdSource(sourceNames, urls, jsonPaths);
 
-        // primusTip.setWithdrawDelay(300);
+        // primusTip.setWithdrawDelay(30 days);
         console.log("withdrawDelay: ", primusTip.withdrawDelay());
         console.log("feeRecipient: ", primusTip.feeRecipient());
         console.log("fee: ", primusTip.claimFee());
         // console.log("primusZKTLS:", address(primusTip.primusZKTLS()));
 
         // primusTip.setFeeRecipient(address(0x9717BdADb90a18e040e835b665f9E51eAa101ab1));
-        // primusTip.setClaimFee(3000000000000000);
+        // primusTip.setClaimFee(50000000000000);
+        // console.log("fee: ", primusTip.claimFee());
 
         // TipRecord[] memory tipRecord = primusTip.getTipRecords(TipRecipient("x", "wenjun_yuan1"));
         // console.log("tipRecord length=", tipRecord.length);
