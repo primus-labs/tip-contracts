@@ -2,6 +2,10 @@
 
 pragma solidity ^0.8.20;
 
+uint32 constant ERC20_TYPE = 0;
+uint32 constant NATIVE_TYPE = 1;
+uint32 constant ERC721_TYPE = 2;
+
 struct TipToken {
     // tokenType is erc20, nft or native. 0 means erc20, 1 means native and 2 means nft.
     uint32 tokenType;
@@ -65,6 +69,8 @@ struct RESendParam {
     uint256 amount;
     // A contract used to check whether you are eligible to receive a red envelope.
     address checkContract;
+    // Parameters passed to checkContract.
+    bytes checkParams;
 }
 
 struct RERecord {
@@ -90,4 +96,6 @@ struct RERecord {
     uint256 amount;
     // The remaining amount of the red envelope.
     uint256 remainingAmount;
+    // Parameters passed to checkContract.
+    bytes checkParams;
 }

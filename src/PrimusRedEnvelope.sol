@@ -5,7 +5,7 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IPrimusZKTLS, Attestation} from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
-import {TipToken, RESendParam, RERecord} from "./types/Common.sol";
+import {TipToken, RESendParam, RERecord, ERC20_TYPE, NATIVE_TYPE} from "./types/Common.sol";
 import "./utils/StringUtils.sol";
 import "./utils/JsonParser.sol";
 
@@ -14,9 +14,9 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
     using JsonParser for string;
 
     event RESendEvent(bytes32 indexed id, address reSender, uint32 tokenType, address tokenAddress, uint256 amount, uint32 reType, uint32 number, uint64 timestamp);
-    event REClaimEvent(bytes32 indexed id, address recipient, uint256 amount, uint64 timestamp);
+    event REClaimEvent(bytes32 indexed id, address recipient, string userId, uint256 claimAmount, uint32 reIndex, uint64 timestamp);
 
-
+    uint256 public idCounter;
     // IPrimusZKTLS contract
     IPrimusZKTLS public primusZKTLS;
     // claim fee
@@ -25,9 +25,12 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
     address public feeRecipient;
     // withdraw delay
     uint256 public withdrawDelay;
-
     mapping(bytes32 => RERecord) public reRecords;
+    // Indicates whether the user id have claimed the red envelope. The user id is source name + id, such as "xusername".
+    mapping(bytes32 => mapping(string => bool)) reClaimed;
 
+    uint32 constant RE_RANDOM = 0;
+    uint32 constant RE_AVERAGE = 1;
 
     /**
      * @dev Initialize function to set the owner of the contract.
@@ -56,8 +59,35 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
      * @param token The send token of the red envelope.
      * @param sendParam The red envelope informations.
      */
-    function reSend(TipToken memory token, RESendParam memory sendParam) external payable {
-
+    function reSend(TipToken memory token, RESendParam calldata sendParam) external payable {
+        require(token.tokenType == ERC20_TYPE || token.tokenType == NATIVE_TYPE, "error token type");
+        if (token.tokenType == ERC20_TYPE) {
+            require(token.tokenAddress != address(0), "error token addr");
+        } else if (token.tokenType == NATIVE_TYPE) {
+            token.tokenAddress = address(0);
+        }
+        require(sendParam.reType == RE_RANDOM || sendParam.reType == RE_AVERAGE, "error re type");
+        require(sendParam.number > 0, "error re number");
+        require(sendParam.amount >= sendParam.number, "reamount too low");
+        _transferFromUser(msg.sender, token, sendParam.amount);
+        idCounter++;
+        bytes32 reId = generateReId(idCounter);
+        RERecord memory reRecord = RERecord({
+            id: reId,
+            tokenType: token.tokenType,
+            reType: sendParam.reType,
+            number: sendParam.number,
+            remainingNumber: sendParam.number,
+            timestamp: (uint64)(block.timestamp),
+            tokenAddress: token.tokenAddress,
+            reSender: msg.sender,
+            checkContract: sendParam.checkContract,
+            amount: sendParam.amount,
+            remainingAmount: sendParam.amount,
+            checkParams: sendParam.checkParams
+        });
+        reRecords[reRecord.id] = reRecord;
+        emit RESendEvent(reRecord.id, reRecord.reSender, reRecord.tokenType, reRecord.tokenAddress, reRecord.amount, reRecord.reType, reRecord.number, reRecord.timestamp);
     }
 
     /**
@@ -66,10 +96,31 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
      * @param att Attestation to prove that the red envelope conditions are met.
      */
     function reClaim(bytes32 reId, Attestation calldata att) external payable {
-
+        RERecord storage reRecord = reRecords[reId];
+        require(reRecord.id != bytes32(0), "no reId");
+        require(reRecord.remainingNumber > 0, "All claimed");
+        (string memory userId, address userAddr) = reCheckClaim(att, reRecord.checkParams);
+        require(!userId.equals(""), "userId empty");
+        require(!reClaimed[reId][userId], "Already claimed");
+        if (claimFee > 0) {
+            // payable(feeRecipient).transfer(fee);
+            (bool sent,) = feeRecipient.call{value: claimFee}("");
+            require(sent, "Failed to send fee");
+        }
+        uint256 amount = getReAmount(reId);
+        reRecord.remainingAmount -= amount;
+        reRecord.remainingNumber -= 1;
+        reClaimed[reId][userId] = true;
+        if (reRecord.tokenType == ERC20_TYPE) {
+            IERC20 sendToken = IERC20(reRecord.tokenAddress);
+            require(sendToken.transfer(userAddr, amount), "Transfer failed");
+        } else if (reRecord.tokenType == NATIVE_TYPE) {
+            payable(userAddr).transfer(amount);
+        }
+        emit REClaimEvent(reRecord.id, userAddr, userId, amount, reRecord.number - reRecord.remainingNumber, (uint64)(block.timestamp));
     }
 
-    function senderWithdraw(bytes32 reId) external {
+    function reSenderWithdraw(bytes32 reId) external {
 
     }
 
@@ -79,11 +130,61 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
      * @param att Attestation to prove that the red envelope conditions are met.
      * @return User id in Attestation. User id cannot be an empty string.
      */
-    function reCheckClaim(Attestation calldata att) public returns (string memory) {
+    function reCheckClaim(Attestation calldata att, bytes memory checkParams) public returns (string memory, address) {
 
     }
 
     function getREInfo(bytes32 reId) external view returns (RERecord memory) {
         return reRecords[reId];
     }
+
+
+    /**
+     * @dev Transfer the token from the user to the contract.
+     * @param from The token sender.
+     * @param token The send token.
+     * @param amount The token amount.
+    */
+    function _transferFromUser(address from, TipToken memory token, uint256 amount) internal {
+        if (token.tokenType == ERC20_TYPE) {
+            IERC20 reToken = IERC20(token.tokenAddress);
+            bool ret = reToken.transferFrom(from, address(this), amount);
+            require(ret, "transfer fail");
+        } else if (token.tokenType == NATIVE_TYPE) {
+            require(msg.value == amount, "wrong amount");
+        }
+    }
+
+    function getReAmount(bytes32 reId) internal view returns (uint256) {
+        RERecord storage reRecord = reRecords[reId];
+        if (reRecord.remainingNumber == 1) {
+            return reRecord.remainingAmount;
+        }
+        uint256 amount;
+        if (reRecord.reType == RE_AVERAGE) {
+            amount = reRecord.amount / reRecord.number;
+            return amount;
+        }
+        uint256 minAmount = 1;
+        uint256 avg = reRecord.remainingAmount / reRecord.remainingNumber;
+        uint256 factor = 3;
+        uint256 maxAmount = avg * factor;
+        uint256 minRemaining = (reRecord.remainingNumber - 1) * minAmount;
+        if (reRecord.remainingAmount <= minRemaining) {
+            return 0;
+        }
+        uint256 maxSafe = reRecord.remainingAmount - minRemaining;
+        uint256 upperBound = maxAmount < maxSafe ? maxAmount : maxSafe;
+        if (upperBound <= minAmount) {
+            return 0;
+        }
+        uint256 seed = uint(keccak256(abi.encodePacked(block.timestamp, msg.sender, block.prevrandao, reId)));
+        amount = seed % (upperBound - minAmount + 1) + minAmount;
+        return amount;
+    }
+
+    function generateReId(uint256 idCnt) internal view returns (bytes32) {
+        return keccak256(abi.encodePacked(block.chainid, idCnt));
+    }
+
 }

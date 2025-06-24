@@ -5,7 +5,7 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import { IPrimusZKTLS, Attestation } from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
-import {TipToken, TipRecipientInfo, TipRecipient, TipRecord, IdSource, TipWithdrawInfo} from "./types/Common.sol";
+import {TipToken, TipRecipientInfo, TipRecipient, TipRecord, IdSource, TipWithdrawInfo, ERC20_TYPE, NATIVE_TYPE, ERC721_TYPE} from "./types/Common.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "./utils/StringUtils.sol";
 import "./utils/JsonParser.sol";
@@ -34,10 +34,6 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     mapping(string => IdSource) public idSourceCache;
     // Tip records by idSource and id
     mapping(string => mapping(string => TipRecord[])) private _tipRecords;
-
-    uint32 constant ERC20_TYPE = 0;
-    uint32 constant NATIVE_TYPE = 1;
-    uint32 constant ERC721_TYPE = 2;
 
     /**
      * @dev Initialize function to set the owner of the contract.
