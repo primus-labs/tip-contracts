@@ -151,7 +151,9 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         string memory followingName = att.data.extractValue(att.reponseResolve[1].keyName);
         (string memory params) = abi.decode(checkParams, (string));
         require(followingName.equals(params), "following Name error");
+        require(!keyName1.equals(att.reponseResolve[0].keyName) && !keyName1.equals(att.reponseResolve[1].keyName), "username empty");
         string memory userName = att.data.extractValue(keyName1);
+        require(!userName.equals(""), "username empty");
         return (userName.addPrefix("x"), att.recipient);
     }
 
