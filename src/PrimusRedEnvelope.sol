@@ -71,7 +71,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         require(sendParam.amount >= sendParam.number, "reamount too low");
         _transferFromUser(msg.sender, token, sendParam.amount);
         idCounter++;
-        bytes32 reId = generateReId(idCounter);
+        bytes32 reId = _generateReId(idCounter);
         RERecord memory reRecord = RERecord({
             id: reId,
             tokenType: token.tokenType,
@@ -107,7 +107,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
             (bool sent,) = feeRecipient.call{value: claimFee}("");
             require(sent, "Failed to send fee");
         }
-        uint256 amount = getReAmount(reId);
+        uint256 amount = _getReAmount(reId);
         reRecord.remainingAmount -= amount;
         reRecord.remainingNumber -= 1;
         reClaimed[reId][userId] = true;
@@ -128,16 +128,36 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
      * @dev Check if Attestation meets the red envelope conditions.
      *      If the check fails, an exception must be thrown.
      * @param att Attestation to prove that the red envelope conditions are met.
-     * @return User id in Attestation. User id cannot be an empty string.
+     * @return User id and address in Attestation. User id cannot be an empty string.
      */
-    function reCheckClaim(Attestation calldata att, bytes memory checkParams) public returns (string memory, address) {
+    function reCheckClaim(Attestation calldata att, bytes memory checkParams) public view returns (string memory, address) {
+        require(att.recipient != address(0), "to addr zero");
+        require(att.reponseResolve.length == 2, "response length error");
+        primusZKTLS.verifyAttestation(att);
+        require(att.request.url.startsWith("https://x.com/i/api/graphql"), "att url error");
+        require(att.reponseResolve[0].parsePath.equals("$.data.user.result.relationship_perspectives.following"), "json path error");
+        require(att.reponseResolve[1].parsePath.equals("$.data.user.result.core.screen_name"), "json path error");
 
+        string memory urlCheck = att.additionParams.extractValue("requests[2].url");
+        require(urlCheck.equals(""), "too more url");
+        string memory url1 = att.additionParams.extractValue("requests[1].url");
+        string memory reponseResolve1 = att.additionParams.extractValue("reponseResolves[1].parsePath");
+        string memory keyName1 = att.additionParams.extractValue("reponseResolves[1].keyName");
+        require(url1.startsWith("https://api.x.com/1.1/account/settings.json"), "att url error");
+        require(reponseResolve1.equals("$.screen_name"), "json path error");
+
+        string memory following = att.data.extractValue(att.reponseResolve[0].keyName);
+        require(following.equals("true"), "following error");
+        string memory followingName = att.data.extractValue(att.reponseResolve[1].keyName);
+        (string memory params) = abi.decode(checkParams, (string));
+        require(followingName.equals(params), "following Name error");
+        string memory userName = att.data.extractValue(keyName1);
+        return (userName.addPrefix("x"), att.recipient);
     }
 
     function getREInfo(bytes32 reId) external view returns (RERecord memory) {
         return reRecords[reId];
     }
-
 
     /**
      * @dev Transfer the token from the user to the contract.
@@ -155,7 +175,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         }
     }
 
-    function getReAmount(bytes32 reId) internal view returns (uint256) {
+    function _getReAmount(bytes32 reId) internal view returns (uint256) {
         RERecord storage reRecord = reRecords[reId];
         if (reRecord.remainingNumber == 1) {
             return reRecord.remainingAmount;
@@ -183,7 +203,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         return amount;
     }
 
-    function generateReId(uint256 idCnt) internal view returns (bytes32) {
+    function _generateReId(uint256 idCnt) internal view returns (bytes32) {
         return keccak256(abi.encodePacked(block.chainid, idCnt));
     }
 
