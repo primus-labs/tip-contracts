@@ -15,6 +15,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
 
     event RESendEvent(bytes32 indexed id, address reSender, uint32 tokenType, address tokenAddress, uint256 amount, uint32 reType, uint32 number, uint64 timestamp);
     event REClaimEvent(bytes32 indexed id, address recipient, string userId, uint256 claimAmount, uint32 reIndex, uint64 timestamp);
+    event RESWithdrawEvent(bytes32 indexed id, address reSender, uint256 amount, uint32 remainingNumber, uint64 timestamp);
 
     uint256 public idCounter;
     // IPrimusZKTLS contract
@@ -53,6 +54,8 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         withdrawDelay = 30 days;
     }
 
+
+    // ========== external functions ==========
     /**
      * @dev Red envelope sender send the token to users.
      *      Sender can send erc20, and native token.
@@ -111,17 +114,22 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         reRecord.remainingAmount -= amount;
         reRecord.remainingNumber -= 1;
         reClaimed[reId][userId] = true;
-        if (reRecord.tokenType == ERC20_TYPE) {
-            IERC20 sendToken = IERC20(reRecord.tokenAddress);
-            require(sendToken.transfer(userAddr, amount), "Transfer failed");
-        } else if (reRecord.tokenType == NATIVE_TYPE) {
-            payable(userAddr).transfer(amount);
-        }
+        _transferToUser(reRecord.tokenType, reRecord.tokenAddress, userAddr, amount);
         emit REClaimEvent(reRecord.id, userAddr, userId, amount, reRecord.number - reRecord.remainingNumber, (uint64)(block.timestamp));
     }
 
     function reSenderWithdraw(bytes32 reId) external {
-
+        RERecord storage reRecord = reRecords[reId];
+        require(reRecord.id != bytes32(0), "no reId");
+        require(reRecord.remainingAmount > 0, "no fund");
+        require(reRecord.reSender == msg.sender, "not owner");
+        require(block.timestamp >= reRecord.timestamp + withdrawDelay, "not expired");
+        uint256 amount = reRecord.remainingAmount;
+        uint32 remainingNumber = reRecord.remainingNumber;
+        reRecord.remainingAmount = 0;
+        reRecord.remainingNumber = 0;
+        _transferToUser(reRecord.tokenType, reRecord.tokenAddress, msg.sender, amount);
+        emit RESWithdrawEvent(reRecord.id, msg.sender, amount, remainingNumber, (uint64)(block.timestamp));
     }
 
     /**
@@ -161,6 +169,45 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         return reRecords[reId];
     }
 
+    function getClaimed(bytes32 reId, string memory userid) external view returns (bool) {
+        return reClaimed[reId][userid];
+    }
+
+
+    // ========== external onlyOwner functions ==========
+    /**
+     * @dev Set the fee recipient address.
+     * @param feeRecipient_ The fee recipient address.
+    */
+    function setFeeRecipient(address feeRecipient_) external onlyOwner {
+        feeRecipient = feeRecipient_;
+    }
+
+    /**
+     * @dev set the withdraw delay.
+     * @param delay The withdraw delay Unit should be days.
+    */
+    function setWithdrawDelay(uint256 delay) external onlyOwner {
+        withdrawDelay = delay;
+    }
+    /**
+     *  @dev set IPrimusZKTLS contract instance
+     *  @param primusZKTLS_ The address of the IPrimusZKTLS contract
+     */
+    function setPrimusZKTLS(IPrimusZKTLS primusZKTLS_) external onlyOwner {
+        primusZKTLS = primusZKTLS_;
+    }
+
+    /**
+     *  @dev set claim fee
+     *  @param claimFee_ The claim fee
+     */
+    function setClaimFee(uint256 claimFee_) external onlyOwner {
+        claimFee = claimFee_;
+    }
+
+
+    // ========== internal functions ==========
     /**
      * @dev Transfer the token from the user to the contract.
      * @param from The token sender.
@@ -174,6 +221,15 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
             require(ret, "transfer fail");
         } else if (token.tokenType == NATIVE_TYPE) {
             require(msg.value == amount, "wrong amount");
+        }
+    }
+
+    function _transferToUser(uint32 tokenType, address tokenAddress, address userAddr, uint256 amount) internal {
+        if (tokenType == ERC20_TYPE) {
+            IERC20 sendToken = IERC20(tokenAddress);
+            require(sendToken.transfer(userAddr, amount), "Transfer failed");
+        } else if (tokenType == NATIVE_TYPE) {
+            payable(userAddr).transfer(amount);
         }
     }
 
