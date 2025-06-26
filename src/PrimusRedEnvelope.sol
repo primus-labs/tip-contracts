@@ -140,27 +140,29 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
      */
     function reCheckClaim(Attestation calldata att, bytes memory checkParams) public view returns (string memory, address) {
         require(att.recipient != address(0), "to addr zero");
-        require(att.reponseResolve.length == 2, "response length error");
         primusZKTLS.verifyAttestation(att);
+        require(att.reponseResolve.length == 2, "response length error");
         require(att.request.url.startsWith("https://x.com/i/api/graphql"), "att url error");
         require(att.reponseResolve[0].parsePath.equals("$.data.user.result.relationship_perspectives.following"), "json path error");
         require(att.reponseResolve[1].parsePath.equals("$.data.user.result.core.screen_name"), "json path error");
+        require(!att.reponseResolve[0].keyName.equals(att.reponseResolve[1].keyName), "following key error");
 
         string memory urlCheck = att.additionParams.extractValue("requests[2].url");
         require(urlCheck.equals(""), "too more url");
+        string memory parseCheck = att.additionParams.extractValue("reponseResolves[1][1].parsePath");
+        require(parseCheck.equals(""), "too more reponseResolves");
         string memory url1 = att.additionParams.extractValue("requests[1].url");
-        string memory reponseResolve1 = att.additionParams.extractValue("reponseResolves[1].parsePath");
-        string memory keyName1 = att.additionParams.extractValue("reponseResolves[1].keyName");
+        string memory reponseResolve1 = att.additionParams.extractValue("reponseResolves[1][0].parsePath");
+        string memory keyName1 = att.additionParams.extractValue("reponseResolves[1][0].keyName");
         require(url1.startsWith("https://api.x.com/1.1/account/settings.json"), "att url error");
         require(reponseResolve1.equals("$.screen_name"), "json path error");
+        require(!keyName1.equals(att.reponseResolve[0].keyName) && !keyName1.equals(att.reponseResolve[1].keyName), "username key error");
 
-        require(!att.reponseResolve[0].keyName.equals(att.reponseResolve[1].keyName), "username key error");
         string memory following = att.data.extractValue(att.reponseResolve[0].keyName);
         require(following.equals("true"), "following error");
         string memory followingName = att.data.extractValue(att.reponseResolve[1].keyName);
         (string memory params) = abi.decode(checkParams, (string));
         require(followingName.equals(params), "following Name error");
-        require(!keyName1.equals(att.reponseResolve[0].keyName) && !keyName1.equals(att.reponseResolve[1].keyName), "username key error");
         string memory userName = att.data.extractValue(keyName1);
         require(!userName.equals(""), "username empty");
         return (userName.addPrefix("x"), att.recipient);
