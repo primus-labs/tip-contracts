@@ -176,6 +176,10 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         return reClaimed[reId][userid];
     }
 
+    function getPrev() external view returns (uint256, uint256) {
+        return (block.prevrandao, block.number);
+    }
+
 
     // ========== external onlyOwner functions ==========
     /**
@@ -259,7 +263,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         if (upperBound <= minAmount) {
             return 0;
         }
-        uint256 seed = uint(keccak256(abi.encodePacked(block.timestamp, msg.sender, block.prevrandao, reId)));
+        uint256 seed = uint(keccak256(abi.encodePacked(block.timestamp, msg.sender, block.prevrandao, blockhash(block.number - 1), reId)));
         amount = seed % (upperBound - minAmount + 1) + minAmount;
         return amount;
     }
