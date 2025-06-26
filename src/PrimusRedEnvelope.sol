@@ -141,6 +141,16 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
     function reCheckClaim(Attestation calldata att, bytes memory checkParams) public view returns (string memory, address) {
         require(att.recipient != address(0), "to addr zero");
         primusZKTLS.verifyAttestation(att);
+        (uint32 checkType, string memory params) = abi.decode(checkParams, (uint32, string));
+        require(checkType == 0 || checkType == 1, "error checkType");
+        if (checkType == 0) {
+            return checkXFollowing(att, params);
+        } else {
+            return checkAccount(att, params);
+        }
+    }
+
+    function checkXFollowing(Attestation calldata att, string memory params) public pure returns (string memory, address) {
         require(att.reponseResolve.length == 2, "response length error");
         require(att.request.url.startsWith("https://x.com/i/api/graphql"), "att url error");
         require(att.reponseResolve[0].parsePath.equals("$.data.user.result.relationship_perspectives.following"), "json path error");
@@ -161,11 +171,37 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         string memory following = att.data.extractValue(att.reponseResolve[0].keyName);
         require(following.equals("true"), "following error");
         string memory followingName = att.data.extractValue(att.reponseResolve[1].keyName);
-        (string memory params) = abi.decode(checkParams, (string));
         require(followingName.equals(params), "following Name error");
         string memory userName = att.data.extractValue(keyName1);
         require(!userName.equals(""), "username empty");
         return (userName.addPrefix("x"), att.recipient);
+    }
+
+    function checkAccount(Attestation calldata att, string memory params) public pure returns (string memory, address) {
+        require(params.equals("tiktok") || params.equals("x") || params.equals("google account") || params.equals("xiaohongshu"), "error source");
+        string memory urlCheck = att.additionParams.extractValue("requests[1].url");
+        require(urlCheck.equals(""), "too more url");
+        require(att.reponseResolve.length == 1, "account response length error");
+        string memory userName;
+        if (params.equals("tiktok")) {
+            require(att.request.url.startsWith("https://www.tiktok.com/passport/web/account/info/"), "tiktok att url error");
+            require(att.reponseResolve[0].parsePath.equals("$.data.username"), "tiktok json path error");
+            userName = att.data.extractValue(att.reponseResolve[0].keyName);
+        } else if (params.equals("x")) {
+            require(att.request.url.startsWith("https://api.x.com/1.1/account/settings.json"), "x att url error");
+            require(att.reponseResolve[0].parsePath.equals("$.screen_name"), "x json path error");
+            userName = att.data.extractValue(att.reponseResolve[0].keyName);
+        } else if (params.equals("google account")) {
+            require(att.request.url.startsWith("https://developers.google.com/_d/profile/user"), "google att url error");
+            require(att.reponseResolve[0].parsePath.equals("$[2]"), "google json path error");
+            userName = att.data.extractValue(att.reponseResolve[0].keyName);
+        } else {
+            require(att.request.url.startsWith("https://edith.xiaohongshu.com/api/sns/web/v2/user/me"), "xiaohongshu att url error");
+            require(att.reponseResolve[0].parsePath.equals("$.data.red_id"), "xiaohongshu json path error");
+            userName = att.data.extractValue(att.reponseResolve[0].keyName);
+        }
+        require(!userName.equals(""), "username empty");
+        return (userName.addPrefix(params), att.recipient);
     }
 
     function getREInfo(bytes32 reId) external view returns (RERecord memory) {
