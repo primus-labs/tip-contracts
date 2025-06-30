@@ -13,7 +13,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
     using StringUtils for string;
     using JsonParser for string;
 
-    event RESendEvent(bytes32 indexed id, address reSender, uint32 tokenType, address tokenAddress, uint256 amount, uint32 reType, uint32 number, uint64 timestamp);
+    event RESendEvent(bytes32 indexed id, address reSender, uint32 tokenType, address tokenAddress, uint256 amount, uint32 reType, uint32 number, uint64 timestamp, bytes checkParams);
     event REClaimEvent(bytes32 indexed id, address recipient, string userId, uint256 claimAmount, uint32 reIndex, uint64 timestamp);
     event RESWithdrawEvent(bytes32 indexed id, address reSender, uint256 amount, uint32 remainingNumber, uint64 timestamp);
 
@@ -90,7 +90,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
             checkParams: sendParam.checkParams
         });
         reRecords[reRecord.id] = reRecord;
-        emit RESendEvent(reRecord.id, reRecord.reSender, reRecord.tokenType, reRecord.tokenAddress, reRecord.amount, reRecord.reType, reRecord.number, reRecord.timestamp);
+        emit RESendEvent(reRecord.id, reRecord.reSender, reRecord.tokenType, reRecord.tokenAddress, reRecord.amount, reRecord.reType, reRecord.number, reRecord.timestamp, reRecord.checkParams);
     }
 
     /**
