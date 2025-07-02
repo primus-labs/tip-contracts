@@ -157,17 +157,28 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         require(att.reponseResolve[1].parsePath.equals("$.data.user.result.core.screen_name"), "json path error");
         require(!att.reponseResolve[0].keyName.equals(att.reponseResolve[1].keyName), "following key error");
 
-        string memory urlCheck = att.additionParams.extractValue("requests[2].url");
+        string[] memory keys = new string[](5);
+        keys[0] = "requests[2].url";
+        keys[1] = "reponseResolves[1][1].parsePath";
+        keys[2] = "requests[1].url";
+        keys[3] = "reponseResolves[1][0].parsePath";
+        keys[4] = "reponseResolves[1][0].keyName";
+        string[] memory values = att.additionParams.extractArrayValue(keys);
+//        string memory urlCheck = att.additionParams.extractValue("requests[2].url");
+        string memory urlCheck = values[0];
         require(urlCheck.equals(""), "too more url");
-        string memory parseCheck = att.additionParams.extractValue("reponseResolves[1][1].parsePath");
+//        string memory parseCheck = att.additionParams.extractValue("reponseResolves[1][1].parsePath");
+        string memory parseCheck = values[1];
         require(parseCheck.equals(""), "too more reponseResolves");
-        string memory url1 = att.additionParams.extractValue("requests[1].url");
-        string memory reponseResolve1 = att.additionParams.extractValue("reponseResolves[1][0].parsePath");
-        string memory keyName1 = att.additionParams.extractValue("reponseResolves[1][0].keyName");
+//        string memory url1 = att.additionParams.extractValue("requests[1].url");
+        string memory url1 = values[2];
+//        string memory reponseResolve1 = att.additionParams.extractValue("reponseResolves[1][0].parsePath");
+        string memory reponseResolve1 = values[3];
+//        string memory keyName1 = att.additionParams.extractValue("reponseResolves[1][0].keyName");
+        string memory keyName1 = values[4];
         require(url1.startsWith("https://api.x.com/1.1/account/settings.json"), "att url error");
         require(reponseResolve1.equals("$.screen_name"), "json path error");
         require(!keyName1.equals(att.reponseResolve[0].keyName) && !keyName1.equals(att.reponseResolve[1].keyName), "username key error");
-
         string memory following = att.data.extractValue(att.reponseResolve[0].keyName);
         require(following.equals("true"), "following error");
         string memory followingName = att.data.extractValue(att.reponseResolve[1].keyName);
@@ -216,7 +227,6 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         return (block.prevrandao, block.number);
     }
 
-
     // ========== external onlyOwner functions ==========
     /**
      * @dev Set the fee recipient address.
@@ -248,7 +258,6 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
     function setClaimFee(uint256 claimFee_) external onlyOwner {
         claimFee = claimFee_;
     }
-
 
     // ========== internal functions ==========
     /**
