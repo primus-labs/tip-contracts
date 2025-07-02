@@ -14,7 +14,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
     using JsonParser for string;
 
     event RESendEvent(bytes32 indexed id, address reSender, uint32 tokenType, address tokenAddress, uint256 amount, uint32 reType, uint32 number, uint64 timestamp, bytes checkParams);
-    event REClaimEvent(bytes32 indexed id, address recipient, string userId, uint256 claimAmount, uint32 reIndex, uint64 timestamp);
+    event REClaimEvent(bytes32 indexed id, address recipient, string userId, uint256 claimAmount, uint32 reIndex, uint64 timestamp, address tokenAddress);
     event RESWithdrawEvent(bytes32 indexed id, address reSender, uint256 amount, uint32 remainingNumber, uint64 timestamp);
 
     uint256 public idCounter;
@@ -115,7 +115,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         reRecord.remainingNumber -= 1;
         reClaimed[reId][userId] = true;
         _transferToUser(reRecord.tokenType, reRecord.tokenAddress, userAddr, amount);
-        emit REClaimEvent(reRecord.id, userAddr, userId, amount, reRecord.number - reRecord.remainingNumber, (uint64)(block.timestamp));
+        emit REClaimEvent(reRecord.id, userAddr, userId, amount, reRecord.number - reRecord.remainingNumber, (uint64)(block.timestamp), reRecord.tokenAddress);
     }
 
     function reSenderWithdraw(bytes32 reId) external {
@@ -164,21 +164,18 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         keys[3] = "reponseResolves[1][0].parsePath";
         keys[4] = "reponseResolves[1][0].keyName";
         string[] memory values = att.additionParams.extractArrayValue(keys);
-//        string memory urlCheck = att.additionParams.extractValue("requests[2].url");
         string memory urlCheck = values[0];
         require(urlCheck.equals(""), "too more url");
-//        string memory parseCheck = att.additionParams.extractValue("reponseResolves[1][1].parsePath");
         string memory parseCheck = values[1];
         require(parseCheck.equals(""), "too more reponseResolves");
-//        string memory url1 = att.additionParams.extractValue("requests[1].url");
+
         string memory url1 = values[2];
-//        string memory reponseResolve1 = att.additionParams.extractValue("reponseResolves[1][0].parsePath");
         string memory reponseResolve1 = values[3];
-//        string memory keyName1 = att.additionParams.extractValue("reponseResolves[1][0].keyName");
         string memory keyName1 = values[4];
         require(url1.startsWith("https://api.x.com/1.1/account/settings.json"), "att url error");
         require(reponseResolve1.equals("$.screen_name"), "json path error");
         require(!keyName1.equals(att.reponseResolve[0].keyName) && !keyName1.equals(att.reponseResolve[1].keyName), "username key error");
+
         string memory following = att.data.extractValue(att.reponseResolve[0].keyName);
         require(following.equals("true"), "following error");
         string memory followingName = att.data.extractValue(att.reponseResolve[1].keyName);

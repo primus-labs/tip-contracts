@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import {Script} from "forge-std/Script.sol";
 import {console} from "forge-std/console.sol";
 import {PrimusRedEnvelope} from "../src/PrimusRedEnvelope.sol";
-import {TipWithdrawInfo, TipRecord, TipRecipient} from "../src/types/Common.sol";
+import {TipWithdrawInfo, TipRecord, TipRecipient, RERecord} from "../src/types/Common.sol";
 import {
     Attestation,
     AttNetworkRequest,
@@ -20,20 +20,33 @@ contract CallScript is Script {
         vm.startBroadcast(senderPrivateKey);
 
         // pharos testnet
-        // PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0xea27Efd7602222774a621f2B7D689C057d9A07b3));
+        PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0x673D74d95A35B26804475066d9cD1DA3947f4eC3));
 
         // bsc testnet
-        PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0xd2357F600D1B7d36E065C8fE1D5A66E43De18F56));
+        // PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0xd2357F600D1B7d36E065C8fE1D5A66E43De18F56));
 
-        uint256 prevrandao;
-        uint256 blocknumber;
-        (prevrandao, blocknumber) = primusRe.getPrev();
-        console.log("block.prevrandao:", prevrandao);
-        console.log("blocknumber:", blocknumber);
+        // uint256 prevrandao;
+        // uint256 blocknumber;
+        // (prevrandao, blocknumber) = primusRe.getPrev();
+        // console.log("block.prevrandao:", prevrandao);
+        // console.log("blocknumber:", blocknumber);
 
+        console.log("withdrawDelay: ", primusRe.withdrawDelay());
+        console.log("feeRecipient: ", primusRe.feeRecipient());
+        console.log("fee: ", primusRe.claimFee());
+
+        // RERecord memory record = primusRe.getREInfo(bytes32(0x82eba839abb7ae4fa7d9625379c6036355d53ce6eb800dc66ed2c573f306f82e));
+        // console.log("record remainingAmount:", record.remainingAmount);
+        // console.log("record remainingNumber:", record.remainingNumber);
+        // console.log("record reSender:", record.reSender);
+        // console.log("record.timestamp:", record.timestamp);
+        // console.log("record timestamp withdrawDelay:", record.timestamp + primusRe.withdrawDelay());
+        // console.log("block.timestamp:", block.timestamp);
+        // console.log("amount:", record.amount);
+        // console.log("number:", record.number);
+
+        // primusRe.setWithdrawDelay(300);
         // console.log("withdrawDelay: ", primusRe.withdrawDelay());
-        // console.log("feeRecipient: ", primusRe.feeRecipient());
-        // console.log("fee: ", primusRe.claimFee());
 
         vm.stopBroadcast();
     }
