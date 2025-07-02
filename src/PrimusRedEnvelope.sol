@@ -144,14 +144,13 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         (uint32 checkType, string memory params) = abi.decode(checkParams, (uint32, string));
         require(checkType == 0 || checkType == 1, "error checkType");
         if (checkType == 0) {
-            (string memory aa, address bb) = checkXFollowing(att, params);
-            return (aa, bb);
+            return checkXFollowing(att, params);
         } else {
             return checkAccount(att, params);
         }
     }
 
-    function checkXFollowing(Attestation calldata att, string memory params) public view returns (string memory, address) {
+    function checkXFollowing(Attestation calldata att, string memory params) public pure returns (string memory, address) {
         require(att.reponseResolve.length == 2, "response length error");
         require(att.request.url.startsWith("https://x.com/i/api/graphql"), "att url error");
         require(att.reponseResolve[0].parsePath.equals("$.data.user.result.relationship_perspectives.following"), "json path error");
