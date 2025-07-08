@@ -20,10 +20,16 @@ contract CallScript is Script {
         vm.startBroadcast(senderPrivateKey);
 
         // pharos testnet
-        PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0x673D74d95A35B26804475066d9cD1DA3947f4eC3));
+        // PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0x673D74d95A35B26804475066d9cD1DA3947f4eC3));
 
         // bsc testnet
         // PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0xd2357F600D1B7d36E065C8fE1D5A66E43De18F56));
+
+        // monad testnet
+        // PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0x5508fC45d930B5dE36647Dbbe5B9414e43C4F614));
+
+         // base sepolia
+        PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0xA33Ed35460C3d06094693956B2d7Cd1a9e7A39a8));
 
         // uint256 prevrandao;
         // uint256 blocknumber;
@@ -34,6 +40,10 @@ contract CallScript is Script {
         console.log("withdrawDelay: ", primusRe.withdrawDelay());
         console.log("feeRecipient: ", primusRe.feeRecipient());
         console.log("fee: ", primusRe.claimFee());
+        // primusRe.setWithdrawDelay(300);
+        // console.log("withdrawDelay: ", primusRe.withdrawDelay());
+        // primusRe.setClaimFee(150000000000000);
+        // console.log("fee: ", primusRe.claimFee());
 
         // RERecord memory record = primusRe.getREInfo(bytes32(0x82eba839abb7ae4fa7d9625379c6036355d53ce6eb800dc66ed2c573f306f82e));
         // console.log("record remainingAmount:", record.remainingAmount);
@@ -45,8 +55,6 @@ contract CallScript is Script {
         // console.log("amount:", record.amount);
         // console.log("number:", record.number);
 
-        // primusRe.setWithdrawDelay(300);
-        // console.log("withdrawDelay: ", primusRe.withdrawDelay());
 
         vm.stopBroadcast();
     }
