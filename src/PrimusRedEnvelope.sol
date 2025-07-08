@@ -152,7 +152,9 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
 
     function checkXFollowing(Attestation calldata att, string memory params) public pure returns (string memory, address) {
         require(att.reponseResolve.length == 2, "response length error");
-        require(att.request.url.startsWith("https://x.com/i/api/graphql"), "att url error");
+        string memory baseUrl = att.request.url.extractStr("?");
+        require(baseUrl.startsWith("https://x.com/i/api/graphql"), "att url error");
+        require(baseUrl.suffixWith("UserByScreenName"), "att suffix url error");
         require(att.reponseResolve[0].parsePath.equals("$.data.user.result.relationship_perspectives.following"), "json path error");
         require(att.reponseResolve[1].parsePath.equals("$.data.user.result.core.screen_name"), "json path error");
         require(!att.reponseResolve[0].keyName.equals(att.reponseResolve[1].keyName), "following key error");

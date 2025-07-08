@@ -23,4 +23,41 @@ library StringUtils {
     function addPrefix(string memory original, string memory prefix) internal pure returns (string memory) {
         return string(abi.encodePacked(prefix, original));
     }
+
+    function suffixWith(string memory original, string memory suffix) internal pure returns (bool) {
+        bytes memory originalBytes = bytes(original);
+        bytes memory suffixBytes = bytes(suffix);
+        uint256 suffixLength = suffixBytes.length;
+        uint256 originalLength = originalBytes.length;
+
+        if (suffixLength > originalLength) {
+            return false;
+        }
+
+        for (uint i = 0; i < suffixLength; i++) {
+            if (originalBytes[originalLength - suffixLength + i] != suffixBytes[i]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+
+
+    function extractStr(string memory original, bytes1 symbol) internal pure returns (string memory) {
+        bytes memory urlBytes = bytes(original);
+        uint256 queryStart = urlBytes.length;
+        for (uint256 i = 0; i < urlBytes.length; i++) {
+            if (urlBytes[i] == symbol) {
+                queryStart = i;
+                break;
+            }
+        }
+        bytes memory baseUrlBytes = new bytes(queryStart);
+        for (uint256 i = 0; i < queryStart; i++) {
+            baseUrlBytes[i] = urlBytes[i];
+        }
+        return string(baseUrlBytes);
+    }
 }

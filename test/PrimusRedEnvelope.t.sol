@@ -25,7 +25,7 @@ uint32 constant FOLLOWING_CHECK_TYPE = 0;
 string constant following_screen_name = "primus_labs";
 
 bytes32 constant eventSig = keccak256("RESendEvent(bytes32,address,uint32,address,uint256,uint32,uint32,uint64)");
-bytes32 constant claimSig = keccak256("REClaimEvent(bytes32,address,string,uint256,uint32,uint64)");
+bytes32 constant claimSig = keccak256("REClaimEvent(bytes32,address,string,uint256,uint32,uint64,address)");
 bytes32 constant withdrawSig = keccak256("RESWithdrawEvent(bytes32,address,uint256,uint32,uint64)");
 
 contract ERC20Mock is IERC20 {
