@@ -184,7 +184,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         require(followingName.equals(params), "following Name error");
         string memory userName = att.data.extractValue(keyName1);
         require(!userName.equals(""), "username empty");
-        return (userName.addPrefix("x"), att.recipient);
+        return (userName.addPrefix("x&"), att.recipient);
     }
 
     function checkAccount(Attestation calldata att, string memory params) public pure returns (string memory, address) {
@@ -211,7 +211,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
             userName = att.data.extractValue(att.reponseResolve[0].keyName);
         }
         require(!userName.equals(""), "username empty");
-        return (userName.addPrefix(params), att.recipient);
+        return (userName.addPrefix(string.concat(params, "&")), att.recipient);
     }
 
     function getREInfo(bytes32 reId) external view returns (RERecord memory) {
