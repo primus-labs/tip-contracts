@@ -1,3 +1,4 @@
 @openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
 @openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/
+@sunscreen/=lib/sunscreen-contracts/
 @primuslabs/zktls-contracts=lib/zktls-contracts/

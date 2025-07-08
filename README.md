@@ -55,3 +55,15 @@ $ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --pri
 ```shell
 $ cast <subcommand>
 ```
+
+### Compile and upload SPF program
+
+```sh
+# Compile the SPF library
+LLVM_DIR=PATH/TO/LLVM/BINARIES make
+
+# Upload the compiled program to the SPF server. This will return an identifier that
+# should match the PRIMUS_TIP_SPF_LIBRARY value in `src/PrimusFHETip.sol`. We
+# add a 0x prefix to the hash to make it a valid address.
+curl -X POST https://spf.sunscreen.tech/programs --data-binary @fhe-programs/compiled/primus-fhe | tr -d '"' | sed 's/^/0x/'
+```

@@ -7,3 +7,6 @@
 [submodule "lib/zktls-contracts"]
 	path = lib/zktls-contracts
 	url = https://github.com/primus-labs/zktls-contracts
+[submodule "lib/sunscreen-contracts"]
+	path = lib/sunscreen-contracts
+	url = https://github.com/Sunscreen-tech/sunscreen-contracts

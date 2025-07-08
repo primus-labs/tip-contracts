@@ -6,6 +6,8 @@ uint32 constant ERC20_TYPE = 0;
 uint32 constant NATIVE_TYPE = 1;
 uint32 constant ERC721_TYPE = 2;
 
+import {Spf} from "@sunscreen/contracts/Spf.sol";
+
 struct TipToken {
     // tokenType is erc20, nft or native. 0 means erc20, 1 means native and 2 means nft.
     uint32 tokenType;
@@ -22,6 +24,16 @@ struct TipRecipientInfo {
     uint256 amount;
     // The nft token ids when token is nft.
     uint256[] nftIds;
+}
+
+struct EncryptedTipRecipientInfo {
+    // The platform of the account.
+    string idSource;
+    // The unique identifier of the account.
+    string id;
+    // The amount of token when token is erc20 and native. This is a reference to
+    // the encrypted amount.
+    Spf.SpfParameter amountId;
 }
 
 struct TipRecipient {
@@ -51,6 +63,18 @@ struct TipRecord {
     address tipper;
     // The nft token ids when token is nft.
     uint256[] nftIds;
+}
+
+struct EncryptedTipRecord {
+    // The amount of token when token is erc20 and native. This is a reference to
+    // the encrypted amount.
+    Spf.SpfParameter amountId;
+    // The tip token.
+    TipToken tipToken;
+    // The tip timestamp.
+    uint64 timestamp;
+    // The tipper address.
+    address tipper;
 }
 
 struct IdSource {
