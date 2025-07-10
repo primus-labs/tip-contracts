@@ -86,4 +86,52 @@ library StringUtils {
         }
         return string(baseUrlBytes);
     }
+
+    function split(string memory _str, string memory _delimiter) internal pure returns (string[] memory) {
+        bytes memory strBytes = bytes(_str);
+        bytes memory delimBytes = bytes(_delimiter);
+        require(delimBytes.length > 0, "Delimiter must not be empty");
+
+        string[] memory partsTemp = new string[](strBytes.length);
+        uint partCount = 0;
+
+        uint lastIndex = 0;
+        uint i = 0;
+        while (i <= strBytes.length - delimBytes.length) {
+            bool matchDelimiter = true;
+            for (uint j = 0; j < delimBytes.length; j++) {
+                if (strBytes[i + j] != delimBytes[j]) {
+                    matchDelimiter = false;
+                    break;
+                }
+            }
+
+            if (matchDelimiter) {
+                partsTemp[partCount++] = substring(_str, lastIndex, i);
+                i += delimBytes.length;
+                lastIndex = i;
+            } else {
+                i++;
+            }
+        }
+
+        partsTemp[partCount++] = substring(_str, lastIndex, strBytes.length);
+
+        string[] memory parts = new string[](partCount);
+        for (uint k = 0; k < partCount; k++) {
+            parts[k] = partsTemp[k];
+        }
+
+        return parts;
+    }
+
+    function substring(string memory str, uint startIndex, uint endIndex) internal pure returns (string memory) {
+        bytes memory strBytes = bytes(str);
+        require(endIndex >= startIndex && endIndex <= strBytes.length, "Invalid indices");
+        bytes memory result = new bytes(endIndex - startIndex);
+        for (uint i = startIndex; i < endIndex; i++) {
+            result[i - startIndex] = strBytes[i];
+        }
+        return string(result);
+    }
 }

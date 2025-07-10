@@ -178,10 +178,24 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         require(reponseResolve1.equals("$.screen_name"), "json path error");
         require(!keyName1.equals(att.reponseResolve[0].keyName) && !keyName1.equals(att.reponseResolve[1].keyName), "username key error");
 
-        string memory following = att.data.extractValue(att.reponseResolve[0].keyName);
-        require(following.equals("true"), "following error");
-        string memory followingName = att.data.extractValue(att.reponseResolve[1].keyName);
-        require(followingName.equals(params), "following Name error");
+        string[] memory strs = att.attConditions.split("},{");
+        for (uint i=0; i<strs.length; i++) {
+            string[] memory keysConditions = new string[](3);
+            keysConditions[0] = "op";
+            keysConditions[1] = "field";
+            keysConditions[2] = "value";
+            string[] memory valuesConditions = strs[i].extractArrayValue(keysConditions);
+            if (valuesConditions[1].equals("$.data.user.result.relationship_perspectives.following")) {
+                require(valuesConditions[2].equals("true") && valuesConditions[0].equals("STREQ"), "following error");
+            }
+            if (valuesConditions[1].equals("$.data.user.result.core.screen_name")) {
+                require(valuesConditions[2].equals(params) && valuesConditions[0].equals("STREQ"), "following name error");
+            }
+            if (valuesConditions[1].equals("$.screen_name")) {
+                require(valuesConditions[0].equals("REVEAL_STRING"), "following name error");
+            }
+        }
+
         string memory userName = att.data.extractValue(keyName1);
         require(!userName.equals(""), "username empty");
         return (userName.addPrefix("x&"), att.recipient);
