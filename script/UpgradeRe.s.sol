@@ -22,16 +22,16 @@ contract UpgradeScript is Script {
         // address proxyAddr = address(0x673D74d95A35B26804475066d9cD1DA3947f4eC3);
 
         // bsc testnet
-        // address proxyAdminAddr = address(0xcE2D84cf0245573aFB3EEEfdFe07fcC0C6489A58);
-        // address proxyAddr = address(0xd2357F600D1B7d36E065C8fE1D5A66E43De18F56);
+        address proxyAdminAddr = address(0x08f4E5559807A7360156Dd9E0c2587B86dDB266E);
+        address proxyAddr = address(0xC75901570dB65070caDEBB74d6702E299Ac8e019);
 
         // monad testnet
         // address proxyAdminAddr = address(0xe830d0A93a13e2a893c708A3D63056c310fA8B2a);
         // address proxyAddr = address(0x5508fC45d930B5dE36647Dbbe5B9414e43C4F614);
 
         // base sepolia
-        address proxyAdminAddr = address(0x832F1f7110dfa99C8EF1B08810b088332393Dd42);
-        address proxyAddr = address(0xA33Ed35460C3d06094693956B2d7Cd1a9e7A39a8);
+        // address proxyAdminAddr = address(0x832F1f7110dfa99C8EF1B08810b088332393Dd42);
+        // address proxyAddr = address(0xA33Ed35460C3d06094693956B2d7Cd1a9e7A39a8);
 
 
         // 3. Call the upgrade method of ProxyAdmin
