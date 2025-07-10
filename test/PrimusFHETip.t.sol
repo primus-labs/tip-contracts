@@ -483,9 +483,9 @@ contract PrimusFHETipTest is Test {
         // Simulate claim
         spfMock.addToBalance(tip, Spf.createTrivialZeroCiphertextParameter(64));
 
-        Spf.SpfParameter memory encryptedBalance = token.tokenType == NATIVE_TYPE
-            ? primusFHETip.nativeClaimedBalanceOf(recipient)
-            : primusFHETip.erc20ClaimedBalanceOf(recipient);
+        Spf.SpfParameter memory encryptedBalance = token.tokenType == ERC20_TYPE
+            ? primusFHETip.erc20ClaimedBalanceOf(token.tokenAddress, recipient)
+            : primusFHETip.nativeClaimedBalanceOf(recipient);
 
         uint256 decryptedBalance = spfMock.decrypt(encryptedBalance);
         assertEq(expectedTransferAmount, decryptedBalance);
@@ -619,7 +619,7 @@ contract PrimusFHETipTest is Test {
         spfMock.addToBalance(tip, Spf.createTrivialZeroCiphertextParameter(64));
 
         Spf.SpfParameter memory balance = token.tokenType == ERC20_TYPE
-            ? primusFHETip.erc20ClaimedBalanceOf(recipient)
+            ? primusFHETip.erc20ClaimedBalanceOf(token.tokenAddress, recipient)
             : primusFHETip.nativeClaimedBalanceOf(recipient);
 
         vm.startPrank(recipient);
