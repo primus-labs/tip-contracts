@@ -192,7 +192,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
                 require(valuesConditions[2].equals(params) && valuesConditions[0].equals("STREQ"), "following name error");
             }
             if (valuesConditions[1].equals("$.screen_name")) {
-                require(valuesConditions[0].equals("REVEAL_STRING"), "following name error");
+                require(valuesConditions[0].equals("REVEAL_STRING"), "name op error");
             }
         }
 
