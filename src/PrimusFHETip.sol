@@ -3,129 +3,24 @@ pragma solidity ^0.8.0;
 
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {IPrimusZKTLS, Attestation} from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
 import {
-    TipToken,
+    ERC20_TYPE,
+    NATIVE_TYPE,
     EncryptedTipRecipientInfo,
-    TipRecipient,
     EncryptedTipRecord,
     IdSource,
-    ERC20_TYPE,
-    NATIVE_TYPE
+    TipRecipient,
+    TipToken
 } from "./types/Common.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import "./utils/StringUtils.sol";
-import "./utils/JsonParser.sol";
+import "./PrimusSpf.sol";
 import "./utils/Currency.sol";
+import "./utils/JsonParser.sol";
+import "./utils/StringUtils.sol";
 
 import "@sunscreen/contracts/Spf.sol";
 import "@sunscreen/contracts/TfheThresholdDecryption.sol";
-
-/**
- * Calls to the off-chain Secure Processing Framework (SPF) library for Primus FHE.
- *
- * All functions here have a corresponding function in the
- * `fhe-programs/src/primus-fhe.c` library. Please refer to that file for the
- * implementation details.
- */
-library PrimusSpf {
-    /**
-     * To update this value, compile the SPF library and then acquire the hash
-     * by uploading the resulting program to the SPF server. Please see the README
-     * for instructions on how to generate this identifier.
-     */
-    Spf.SpfLibrary public constant PRIMUS_TIP_SPF_LIBRARY =
-        Spf.SpfLibrary.wrap(0xc57120724dfd69eb50b284688d35fd748a7c6efa956e379092b8eb3ac9f921ea);
-
-    // These program names should match the function names in the `primus-fhe.c` file.
-    Spf.SpfProgram public constant PRIMUS_UPDATE_TIP_PROGRAM = Spf.SpfProgram.wrap("updateTip");
-    Spf.SpfProgram public constant PRIMUS_ADD_TO_BALANCE_PROGRAM = Spf.SpfProgram.wrap("addToBalance");
-    Spf.SpfProgram public constant PRIMUS_WITHDRAW_PROGRAM = Spf.SpfProgram.wrap("withdraw");
-
-    /**
-     * Update the tip amount and spent amount for the user, checking that the
-     * user has enough balance to tip.
-     *
-     * @param amount The amount to tip (encrypted).
-     * @param balance The current balance of the user (plaintext).
-     * @param spent The current spent amount of the user (encrypted).
-     * @return updatedAmount The updated amount after the tip (encrypted).
-     * @return updatedSpent The updated spent amount after the tip (encrypted).
-     */
-    function updateTip(Spf.SpfParameter memory amount, uint256 balance, Spf.SpfParameter memory spent)
-        internal
-        returns (Spf.SpfParameter memory, Spf.SpfParameter memory)
-    {
-        // Pack the parameters for the SPF program.
-        Spf.SpfParameter[] memory parameters = new Spf.SpfParameter[](6);
-        parameters[0] = Spf.createPlaintextParameter(64, 0); // zero
-        parameters[1] = amount;
-        parameters[2] = Spf.createPlaintextParameter(64, balance); // balance
-        parameters[3] = spent;
-        parameters[4] = Spf.createOutputCiphertextParameter(64); // updatedAmount
-        parameters[5] = Spf.createOutputCiphertextParameter(64); // updatedSpent
-
-        // Notify the SPF server to run the program with the given parameters.
-        Spf.SpfRunHandle runHandle = Spf.requestSpf(PRIMUS_TIP_SPF_LIBRARY, PRIMUS_UPDATE_TIP_PROGRAM, parameters);
-
-        // Derive the updated amount and spent handles
-        Spf.SpfParameter memory updatedAmount = Spf.getOutputHandle(runHandle, 0);
-        Spf.SpfParameter memory updatedSpent = Spf.getOutputHandle(runHandle, 1);
-
-        return (updatedAmount, updatedSpent);
-    }
-
-    /**
-     * Add the given amount to the user's balance.
-     *
-     * @param amount The amount to add (encrypted).
-     * @param balance The current balance of the user (encrypted).
-     * @return updatedBalance The updated balance after adding the amount (encrypted).
-     */
-    function addToBalance(Spf.SpfParameter memory amount, Spf.SpfParameter memory balance)
-        internal
-        returns (Spf.SpfParameter memory)
-    {
-        Spf.SpfParameter[] memory parameters = new Spf.SpfParameter[](4);
-        parameters[0] = Spf.createPlaintextParameter(64, 0); // zero
-        parameters[1] = amount;
-        parameters[2] = balance;
-        parameters[3] = Spf.createOutputCiphertextParameter(64); // updatedBalance
-
-        Spf.SpfRunHandle runHandle = Spf.requestSpf(PRIMUS_TIP_SPF_LIBRARY, PRIMUS_ADD_TO_BALANCE_PROGRAM, parameters);
-
-        Spf.SpfParameter memory updatedBalance = Spf.getOutputHandle(runHandle, 0);
-
-        return updatedBalance;
-    }
-
-    /**
-     * Withdraw the specified amount from the user's balance.
-     *
-     * @param amount The amount to withdraw (plaintext).
-     * @param balance The current balance of the user (encrypted).
-     * @return updatedAmount The updated amount after the withdrawal (encrypted).
-     * @return updatedBalance The updated balance after the withdrawal (encrypted).
-     */
-    function withdraw(uint64 amount, Spf.SpfParameter memory balance)
-        internal
-        returns (Spf.SpfParameter memory, Spf.SpfParameter memory)
-    {
-        Spf.SpfParameter[] memory parameters = new Spf.SpfParameter[](5);
-        parameters[0] = Spf.createPlaintextParameter(64, 0); // zero
-        parameters[1] = Spf.createPlaintextParameter(64, amount); // amount to withdraw
-        parameters[2] = balance;
-        parameters[3] = Spf.createOutputCiphertextParameter(64); // updatedAmount
-        parameters[4] = Spf.createOutputCiphertextParameter(64); // updatedBalance
-
-        Spf.SpfRunHandle runHandle = Spf.requestSpf(PRIMUS_TIP_SPF_LIBRARY, PRIMUS_WITHDRAW_PROGRAM, parameters);
-
-        Spf.SpfParameter memory updatedAmount = Spf.getOutputHandle(runHandle, 0);
-        Spf.SpfParameter memory updatedBalance = Spf.getOutputHandle(runHandle, 1);
-
-        return (updatedAmount, updatedBalance);
-    }
-}
 
 /**
  * @title PrimusFHETip
@@ -201,15 +96,17 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
     /// Tip records by idSource and id
     mapping(string => mapping(string => EncryptedTipRecord[])) private tipRecords;
 
-    /// Claimed ERC20 and native token balances for recipient.
-    mapping(address => Spf.SpfParameter) public erc20ClaimedBalance;
+    /// Claimed ERC20 token balances for recipient, indexed by recipient address and token address.
+    mapping(address => mapping(address => Spf.SpfParameter)) public erc20ClaimedBalance;
+
+    /// Claimed native token balances for recipient.
     mapping(address => Spf.SpfParameter) public nativeClaimedBalance;
 
-    /// Tipper deposits of ERC20 tokens.
-    mapping(address => uint256) private erc20Deposits;
+    /// Tipper deposits of ERC20 tokens, indexed by tipper address and token address.
+    mapping(address => mapping(address => uint256)) private erc20Deposits;
 
-    /// Tipper spent amounts of ERC20 tokens.
-    mapping(address => Spf.SpfParameter) private erc20Spent;
+    /// Tipper spent amounts of ERC20 tokens, indexed by tipper address and token address.
+    mapping(address => mapping(address => Spf.SpfParameter)) private erc20Spent;
 
     /// Tipper deposits of native tokens (in gwei).
     mapping(address => uint256) private nativeDeposits;
@@ -230,8 +127,8 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
     /**
      * Get the claimed balance of the user for ERC20 tokens (encrypted)
      */
-    function erc20ClaimedBalanceOf(address user) external view returns (Spf.SpfParameter memory) {
-        return erc20ClaimedBalance[user];
+    function erc20ClaimedBalanceOf(address token, address user) external view returns (Spf.SpfParameter memory) {
+        return erc20ClaimedBalance[user][token];
     }
 
     /**
@@ -259,10 +156,14 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
      * @param token The tip token to check.
      */
     modifier isValidEncryptedTokenType(TipToken memory token) {
-        require(
-            token.tokenType == ERC20_TYPE || token.tokenType == NATIVE_TYPE,
-            "Not supported token type. Only support ERC20 and native tokens"
-        );
+        if (token.tokenType == ERC20_TYPE) {
+            require(token.tokenAddress != address(0), "ERC20 token address is zero");
+        } else if (token.tokenType == NATIVE_TYPE) {
+            // Native token does not have an address, so we set it to zero.
+            require(token.tokenAddress == address(0), "Native token address must be zero");
+        } else {
+            revert("Invalid token type, only supports ERC20 and native tokens");
+        }
         _;
     }
 
@@ -411,12 +312,10 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
     function _deposit(TipToken memory token, uint256 depositAmount) internal isValidEncryptedTokenType(token) {
         require(depositAmount > 0, "amount is zero");
         if (token.tokenType == ERC20_TYPE) {
-            require(token.tokenAddress != address(0), "error token addr");
-
             // Check that the value fits in a uint64. The SPF library uses
             // uint64 for amounts.
             require(
-                depositAmount + erc20Deposits[msg.sender] <= type(uint64).max,
+                depositAmount + erc20Deposits[msg.sender][token.tokenAddress] <= type(uint64).max,
                 "total deposit exceeds the size of a uint64"
             );
         } else if (token.tokenType == NATIVE_TYPE) {
@@ -434,7 +333,7 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
 
         // After the transfer is successful we credit the deposit.
         if (token.tokenType == ERC20_TYPE) {
-            erc20Deposits[msg.sender] += depositAmount;
+            erc20Deposits[msg.sender][token.tokenAddress] += depositAmount;
         } else if (token.tokenType == NATIVE_TYPE) {
             // Deposits are stored in amount of gwei
             nativeDeposits[msg.sender] += depositAmount.weiToGweiChecked();
@@ -538,17 +437,18 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
 
         if (token.tokenType == ERC20_TYPE) {
             // If the user has not tipped before, initialize the spent amount to 0.
-            if (Spf.isUninitializedParameter(erc20Spent[msg.sender])) {
-                erc20Spent[msg.sender] = Spf.createTrivialZeroCiphertextParameter(64);
+            if (Spf.isUninitializedParameter(erc20Spent[msg.sender][token.tokenAddress])) {
+                erc20Spent[msg.sender][token.tokenAddress] = Spf.createTrivialZeroCiphertextParameter(64);
             }
 
             // Update the tip amount and spent amount for the user using the SPF
             // off-chain service.
-            (Spf.SpfParameter memory updatedAmount, Spf.SpfParameter memory updatedBalance) =
-                PrimusSpf.updateTip(amount, erc20Deposits[msg.sender], erc20Spent[msg.sender]);
+            (Spf.SpfParameter memory updatedAmount, Spf.SpfParameter memory updatedBalance) = PrimusSpf.updateTip(
+                amount, erc20Deposits[msg.sender][token.tokenAddress], erc20Spent[msg.sender][token.tokenAddress]
+            );
 
             // Update the spent amount in the mapping.
-            erc20Spent[msg.sender] = updatedBalance;
+            erc20Spent[msg.sender][token.tokenAddress] = updatedBalance;
             updatedTip = updatedAmount;
         } else if (token.tokenType == NATIVE_TYPE) {
             // If the user has not tipped before, initialize the spent amount to 0.
@@ -713,17 +613,18 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
         // on the tip side)
         if (token.tokenType == ERC20_TYPE) {
             // If the balance was uninitialized, we set it to 0.
-            if (Spf.isUninitializedParameter(erc20ClaimedBalance[to])) {
-                erc20ClaimedBalance[to] = Spf.createTrivialZeroCiphertextParameter(64);
+            if (Spf.isUninitializedParameter(erc20ClaimedBalance[to][token.tokenAddress])) {
+                erc20ClaimedBalance[to][token.tokenAddress] = Spf.createTrivialZeroCiphertextParameter(64);
             }
 
             // Update the balance of the recipient by adding the amount to the
             // existing balance. Uses the SPF off-chain service to perform the
             // addition.
-            Spf.SpfParameter memory updatedBalance = PrimusSpf.addToBalance(amount, erc20ClaimedBalance[to]);
+            Spf.SpfParameter memory updatedBalance =
+                PrimusSpf.addToBalance(amount, erc20ClaimedBalance[to][token.tokenAddress]);
 
             // Update the encrypted balance of the recipient.
-            erc20ClaimedBalance[to] = updatedBalance;
+            erc20ClaimedBalance[to][token.tokenAddress] = updatedBalance;
         } else if (token.tokenType == NATIVE_TYPE) {
             // If the balance was uninitialized, we set it to 0.
             if (Spf.isUninitializedParameter(nativeClaimedBalance[to])) {
@@ -783,8 +684,9 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
         require(msg.value >= gasCost, "The withdrawer must pay the gas cost for the decryption oracle");
         payable(TfheThresholdDecryption.THRESHOLD_DECRYPTION_SERVICE).transfer(gasCost);
 
-        Spf.SpfParameter memory balance =
-            token.tokenType == ERC20_TYPE ? erc20ClaimedBalance[msg.sender] : nativeClaimedBalance[msg.sender];
+        Spf.SpfParameter memory balance = token.tokenType == ERC20_TYPE
+            ? erc20ClaimedBalance[msg.sender][token.tokenAddress]
+            : nativeClaimedBalance[msg.sender];
 
         // Check that the user has enough balance to withdraw the requested
         // amount. Runs using the SPF off-chain service.
@@ -793,7 +695,7 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
 
         // Update the encrypted balance.
         if (token.tokenType == ERC20_TYPE) {
-            erc20ClaimedBalance[msg.sender] = updatedBalance;
+            erc20ClaimedBalance[msg.sender][token.tokenAddress] = updatedBalance;
         } else if (token.tokenType == NATIVE_TYPE) {
             nativeClaimedBalance[msg.sender] = updatedBalance;
         } else {
