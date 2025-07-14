@@ -157,7 +157,6 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         require(baseUrl.suffixWith("UserByScreenName"), "att suffix url error");
         require(att.reponseResolve[0].parsePath.equals("$.data.user.result.relationship_perspectives.following"), "json path error");
         require(att.reponseResolve[1].parsePath.equals("$.data.user.result.core.screen_name"), "json path error");
-        require(!att.reponseResolve[0].keyName.equals(att.reponseResolve[1].keyName), "following key error");
 
         string[] memory keys = new string[](5);
         keys[0] = "requests[2].url";
