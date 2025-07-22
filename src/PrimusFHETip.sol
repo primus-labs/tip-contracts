@@ -49,6 +49,7 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
         address recipient;
         TipToken token;
         bool processed;
+        bytes32 runHandle;
     }
 
     /// When a tipper deposits tokens (in plaintext) into the contract, this event is emitted.
@@ -62,7 +63,8 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
         address tokenAddr,
         Spf.SpfParameter amountId,
         uint64 tipTime,
-        uint32 tokenType
+        uint32 tokenType,
+        bytes32 runHandle
     );
 
     /// When a recipient claims their tips, this (encrypted) event is emitted.
@@ -75,11 +77,12 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
         address tokenAddr,
         Spf.SpfParameter amountId,
         uint64 tipTime,
-        uint32 tokenType
+        uint32 tokenType,
+        bytes32 runHandle
     );
 
     /// When a recipient withdraws their claimed tokens, this (plaintext) event is emitted.
-    event WithdrawEvent(address indexed recipient, uint64 withdrawTime, uint256 amount);
+    event WithdrawEvent(address indexed recipient, uint64 withdrawTime, uint256 amount, bytes32 runHandle);
 
     // IPrimusZKTLS contract
     IPrimusZKTLS public primusZKTLS;
@@ -399,7 +402,7 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
 
         // Check if the tipper has the money to spend. If not, then the
         // encrypted tip amount will be modified to be zero.
-        Spf.SpfParameter memory amountId = updateTipAmount(token, recipient.amountId);
+        (Spf.SpfRunHandle runHandle, Spf.SpfParameter memory amountId) = updateTipAmount(token, recipient.amountId);
 
         EncryptedTipRecord memory tipRecord = EncryptedTipRecord({
             amountId: amountId,
@@ -416,7 +419,8 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
             token.tokenAddress,
             recipient.amountId,
             uint64(block.timestamp),
-            token.tokenType
+            token.tokenType,
+            Spf.SpfRunHandle.unwrap(runHandle)
         );
     }
 
@@ -431,9 +435,11 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
      */
     function updateTipAmount(TipToken calldata token, Spf.SpfParameter calldata amount)
         internal
-        returns (Spf.SpfParameter memory)
+        returns (Spf.SpfRunHandle, Spf.SpfParameter memory)
     {
         Spf.SpfParameter memory updatedTip;
+
+        Spf.SpfRunHandle runHandle;
 
         if (token.tokenType == ERC20_TYPE) {
             // If the user has not tipped before, initialize the spent amount to 0.
@@ -443,9 +449,11 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
 
             // Update the tip amount and spent amount for the user using the SPF
             // off-chain service.
-            (Spf.SpfParameter memory updatedAmount, Spf.SpfParameter memory updatedBalance) = PrimusSpf.updateTip(
+            (Spf.SpfRunHandle _runHandle, Spf.SpfParameter memory updatedAmount, Spf.SpfParameter memory updatedBalance) = PrimusSpf.updateTip(
                 amount, erc20Deposits[msg.sender][token.tokenAddress], erc20Spent[msg.sender][token.tokenAddress]
             );
+
+            runHandle = _runHandle;
 
             // Update the spent amount in the mapping.
             erc20Spent[msg.sender][token.tokenAddress] = updatedBalance;
@@ -458,15 +466,16 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
 
             // Update the tip amount and spent amount for the user using the SPF
             // off-chain service.
-            (Spf.SpfParameter memory updatedAmount, Spf.SpfParameter memory updatedBalance) =
+            (Spf.SpfRunHandle _runHandle, Spf.SpfParameter memory updatedAmount, Spf.SpfParameter memory updatedBalance) =
                 PrimusSpf.updateTip(amount, nativeDeposits[msg.sender], nativeSpent[msg.sender]);
+            runHandle = _runHandle;
 
             // Update the spent amount in the mapping.
             nativeSpent[msg.sender] = updatedBalance;
             updatedTip = updatedAmount;
         }
 
-        return updatedTip;
+        return (runHandle, updatedTip);
     }
 
     /**
@@ -544,7 +553,7 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
         for (uint256 i = 0; i < sourceTipRecords.length; i++) {
             EncryptedTipRecord memory record = sourceTipRecords[i];
 
-            _transferClaimedTokenToRecipient(att.recipient, record.tipToken, record.amountId);
+            Spf.SpfRunHandle runHandle = _transferClaimedTokenToRecipient(att.recipient, record.tipToken, record.amountId);
             emit ClaimEvent(
                 att.recipient,
                 (uint64)(block.timestamp),
@@ -554,7 +563,8 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
                 record.tipToken.tokenAddress,
                 record.amountId,
                 record.timestamp,
-                record.tipToken.tokenType
+                record.tipToken.tokenType,
+                Spf.SpfRunHandle.unwrap(runHandle)
             );
         }
         return sourceTipRecords.length;
@@ -607,7 +617,10 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
     function _transferClaimedTokenToRecipient(address to, TipToken memory token, Spf.SpfParameter memory amount)
         internal
         isValidEncryptedTokenType(token)
+        returns (Spf.SpfRunHandle)
     {
+        Spf.SpfRunHandle runHandle;
+
         // We do not need to actually need to check that we can transfer in the
         // token because we know we already have it (was accounted for spending
         // on the tip side)
@@ -620,8 +633,10 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
             // Update the balance of the recipient by adding the amount to the
             // existing balance. Uses the SPF off-chain service to perform the
             // addition.
-            Spf.SpfParameter memory updatedBalance =
+            (Spf.SpfRunHandle _runHandle, Spf.SpfParameter memory updatedBalance) =
                 PrimusSpf.addToBalance(amount, erc20ClaimedBalance[to][token.tokenAddress]);
+
+            runHandle = _runHandle;
 
             // Update the encrypted balance of the recipient.
             erc20ClaimedBalance[to][token.tokenAddress] = updatedBalance;
@@ -634,11 +649,14 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
             // Update the balance of the recipient by adding the amount to the
             // existing balance. Uses the SPF off-chain service to perform the
             // addition.
-            Spf.SpfParameter memory updatedBalance = PrimusSpf.addToBalance(amount, nativeClaimedBalance[to]);
+            (Spf.SpfRunHandle _runHandle, Spf.SpfParameter memory updatedBalance) = PrimusSpf.addToBalance(amount, nativeClaimedBalance[to]);
+            runHandle = _runHandle;
 
             // Update the encrypted balance of the recipient.
             nativeClaimedBalance[to] = updatedBalance;
         }
+
+        return runHandle;
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -690,7 +708,7 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
 
         // Check that the user has enough balance to withdraw the requested
         // amount. Runs using the SPF off-chain service.
-        (Spf.SpfParameter memory updatedAmount, Spf.SpfParameter memory updatedBalance) =
+        (Spf.SpfRunHandle runHandle, Spf.SpfParameter memory updatedAmount, Spf.SpfParameter memory updatedBalance) =
             PrimusSpf.withdraw(uint64(amount), balance);
 
         // Update the encrypted balance.
@@ -708,7 +726,7 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
 
         // Update the mapping for the decryption withdraw token. This is used to
         // pass extra information to the callback.
-        decryptionWithdrawToken[identifier] = WithdrawToken({recipient: msg.sender, token: token, processed: false});
+        decryptionWithdrawToken[identifier] = WithdrawToken({recipient: msg.sender, token: token, processed: false, runHandle: Spf.SpfRunHandle.unwrap(runHandle)});
     }
 
     /**
@@ -738,7 +756,7 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
         _withdrawToken(withdrawToken.recipient, withdrawToken.token, amount);
         delete decryptionWithdrawToken[identifier];
 
-        emit WithdrawEvent(withdrawToken.recipient, (uint64)(block.timestamp), amount);
+        emit WithdrawEvent(withdrawToken.recipient, (uint64)(block.timestamp), amount, withdrawToken.runHandle);
     }
 
     /**

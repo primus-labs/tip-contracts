@@ -33,7 +33,7 @@ library PrimusSpf {
      */
     function updateTip(Spf.SpfParameter memory amount, uint256 balance, Spf.SpfParameter memory spent)
         internal
-        returns (Spf.SpfParameter memory, Spf.SpfParameter memory)
+        returns (Spf.SpfRunHandle, Spf.SpfParameter memory, Spf.SpfParameter memory)
     {
         // Pack the parameters for the SPF program.
         Spf.SpfParameter[] memory parameters = new Spf.SpfParameter[](6);
@@ -51,7 +51,7 @@ library PrimusSpf {
         Spf.SpfParameter memory updatedAmount = Spf.getOutputHandle(runHandle, 0);
         Spf.SpfParameter memory updatedSpent = Spf.getOutputHandle(runHandle, 1);
 
-        return (updatedAmount, updatedSpent);
+        return (runHandle, updatedAmount, updatedSpent);
     }
 
     /**
@@ -63,7 +63,7 @@ library PrimusSpf {
      */
     function addToBalance(Spf.SpfParameter memory amount, Spf.SpfParameter memory balance)
         internal
-        returns (Spf.SpfParameter memory)
+        returns (Spf.SpfRunHandle, Spf.SpfParameter memory)
     {
         Spf.SpfParameter[] memory parameters = new Spf.SpfParameter[](4);
         parameters[0] = Spf.createPlaintextParameter(64, 0); // zero
@@ -75,7 +75,7 @@ library PrimusSpf {
 
         Spf.SpfParameter memory updatedBalance = Spf.getOutputHandle(runHandle, 0);
 
-        return updatedBalance;
+        return (runHandle, updatedBalance);
     }
 
     /**
@@ -88,7 +88,7 @@ library PrimusSpf {
      */
     function withdraw(uint64 amount, Spf.SpfParameter memory balance)
         internal
-        returns (Spf.SpfParameter memory, Spf.SpfParameter memory)
+        returns (Spf.SpfRunHandle, Spf.SpfParameter memory, Spf.SpfParameter memory)
     {
         Spf.SpfParameter[] memory parameters = new Spf.SpfParameter[](5);
         parameters[0] = Spf.createPlaintextParameter(64, 0); // zero
@@ -102,6 +102,6 @@ library PrimusSpf {
         Spf.SpfParameter memory updatedAmount = Spf.getOutputHandle(runHandle, 0);
         Spf.SpfParameter memory updatedBalance = Spf.getOutputHandle(runHandle, 1);
 
-        return (updatedAmount, updatedBalance);
+        return (runHandle, updatedAmount, updatedBalance);
     }
 }
