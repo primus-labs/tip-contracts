@@ -105,6 +105,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         (string memory userId, address userAddr) = reCheckClaim(att, reRecord.checkParams);
         require(!userId.equals(""), "userId empty");
         require(!reClaimed[reId][userId], "Already claimed");
+        require(msg.value == claimFee, "fee amount err");
         if (claimFee > 0) {
             // payable(feeRecipient).transfer(fee);
             (bool sent,) = feeRecipient.call{value: claimFee}("");
