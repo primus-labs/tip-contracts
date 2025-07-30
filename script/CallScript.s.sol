@@ -75,10 +75,22 @@ contract CallScript is Script {
         // primusTip.setClaimFee(50000000000000);
         // console.log("fee: ", primusTip.claimFee());
 
-        // TipRecord[] memory tipRecord = primusTip.getTipRecords(TipRecipient("x", "wenjun_yuan1"));
+        // TipRecord[] memory tipRecord = primusTip.getTipRecordsPaginated(TipRecipient("x", "avzcrypto"), 0, 20);
         // console.log("tipRecord length=", tipRecord.length);
         // console.log("tipRecord[0].timestamp=", tipRecord[0].timestamp);
         // console.log("tipRecord[0].amount=", tipRecord[0].amount);
+
+        // uint256 recordLen = primusTip.getTipRecordsLength(TipRecipient("x", "avzcrypto"));
+        // console.log("recordLen=", recordLen);
+
+        // uint256 amount = primusTip.getTipRecordsNativeAmount(TipRecipient("x", "avzcrypto"));
+        // console.log("amount=", amount);
+
+        // (address[] memory token, uint256[] memory balance) = primusTip.getTipTokenStats(TipRecipient("x", "avzcrypto"));
+        // for (uint256 i = 0; i < token.length; i++) {
+        //     console.log("address=", token[i]);
+        //     console.log("balance=", balance[i]);
+        // }
 
         // Attestation memory attestation;
         // string memory idSource = "x";

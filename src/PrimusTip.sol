@@ -217,6 +217,44 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         return _tipRecords[tipRecipient.idSource][tipRecipient.id];
     }
 
+    function getTipRecordsLength(TipRecipient calldata tipRecipient) external view returns (uint256) {
+        return _tipRecords[tipRecipient.idSource][tipRecipient.id].length;
+    }
+
+    function getTipRecordsPaginated(TipRecipient calldata tipRecipient, uint256 offset, uint256 limit) external view returns (TipRecord[] memory) {
+        TipRecord[] storage allRecords = _tipRecords[tipRecipient.idSource][tipRecipient.id];
+        uint256 total = allRecords.length;
+
+        if (offset >= total) {
+            return new TipRecord[](0);
+        }
+
+        uint256 end = offset + limit;
+        if (end > total) {
+            end = total;
+        }
+
+        uint256 size = end - offset;
+        TipRecord[] memory result = new TipRecord[](size);
+
+        for (uint256 i = 0; i < size; i++) {
+            result[i] = allRecords[offset + i];
+        }
+
+        return result;
+    }
+
+    function getTipRecordsNativeAmount(TipRecipient calldata tipRecipient) external view returns (uint256) {
+        TipRecord[] storage allRecords = _tipRecords[tipRecipient.idSource][tipRecipient.id];
+        uint256 amount = 0;
+        for (uint256 i = 0; i < allRecords.length; i++) {
+            if (allRecords[i].tipToken.tokenType == NATIVE_TYPE) {
+                amount += allRecords[i].amount;
+            }
+        }
+        return amount;
+    }
+
 
     // ========== external onlyOwner functions ==========
     /**
