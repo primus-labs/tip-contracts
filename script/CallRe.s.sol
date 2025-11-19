@@ -20,7 +20,7 @@ contract CallScript is Script {
         vm.startBroadcast(senderPrivateKey);
 
         // pharos testnet
-        PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0x673D74d95A35B26804475066d9cD1DA3947f4eC3));
+        // PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0x673D74d95A35B26804475066d9cD1DA3947f4eC3));
 
         // bsc testnet
         // PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0xC75901570dB65070caDEBB74d6702E299Ac8e019));
@@ -36,6 +36,9 @@ contract CallScript is Script {
 
         // base mainnet
         // PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0x50bd377EB8D4236Bb587AB3FB1eeafd888AEeC58));
+
+        // monad mainnet
+        PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0x50bd377EB8D4236Bb587AB3FB1eeafd888AEeC58));
 
 
         // uint256 prevrandao;

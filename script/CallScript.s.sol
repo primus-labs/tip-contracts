@@ -35,6 +35,9 @@ contract CallScript is Script {
         // PrimusTip primusTip = PrimusTip(address(0x4E78940F0019EbAEDc6F4995D7B8ABf060F7a341));
 
         // base mainnet
+        // PrimusTip primusTip = PrimusTip(address(0xa2e0700a269Be3158c81E4739518b324d4398588));
+
+        // monad mainnet
         PrimusTip primusTip = PrimusTip(address(0xa2e0700a269Be3158c81E4739518b324d4398588));
 
         // string[] memory sourceNames = new string[](2);
