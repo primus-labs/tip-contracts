@@ -18,8 +18,8 @@ contract UpgradeScript is Script {
         PrimusRedEnvelope newLogic = new PrimusRedEnvelope();
 
         // pharos testnet
-        // address proxyAdminAddr = address(0x8e1D6B278D4304D7cb5FEfe9D4C8117DAf99F822);
-        // address proxyAddr = address(0x673D74d95A35B26804475066d9cD1DA3947f4eC3);
+        address proxyAdminAddr = address(0x8e1D6B278D4304D7cb5FEfe9D4C8117DAf99F822);
+        address proxyAddr = address(0x673D74d95A35B26804475066d9cD1DA3947f4eC3);
 
         // bsc testnet
         // address proxyAdminAddr = address(0x08f4E5559807A7360156Dd9E0c2587B86dDB266E);
@@ -38,8 +38,8 @@ contract UpgradeScript is Script {
         // address proxyAddr = address(0x083693C148e30b3A231D325366E76b38293FCa10);
 
         // base mainnet
-        address proxyAdminAddr = address(0x5373eDbf1eE8F725c2848Ee7A6CEe763c12faC18);
-        address proxyAddr = address(0x50bd377EB8D4236Bb587AB3FB1eeafd888AEeC58);
+        // address proxyAdminAddr = address(0x5373eDbf1eE8F725c2848Ee7A6CEe763c12faC18);
+        // address proxyAddr = address(0x50bd377EB8D4236Bb587AB3FB1eeafd888AEeC58);
 
 
         // 3. Call the upgrade method of ProxyAdmin

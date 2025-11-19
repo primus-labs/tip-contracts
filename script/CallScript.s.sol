@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import {Script} from "forge-std/Script.sol";
 import {console} from "forge-std/console.sol";
 import {PrimusTip} from "../src/PrimusTip.sol";
-import {TipWithdrawInfo, TipRecord, TipRecipient} from "../src/types/Common.sol";
+import {TipWithdrawInfo, TipRecord, TipRecipient, TipToken, TipRecipientInfo} from "../src/types/Common.sol";
 import {
     Attestation,
     AttNetworkRequest,
@@ -29,13 +29,13 @@ contract CallScript is Script {
         // PrimusTip primusTip = PrimusTip(address(0x1fb86db904caF7c12100EA64024E5dfd7505E484));
 
         // pharos testnet
-        PrimusTip primusTip = PrimusTip(address(0xD17512B7EC12880Bd94Eca9d774089fF89805F02));
+        // PrimusTip primusTip = PrimusTip(address(0xD17512B7EC12880Bd94Eca9d774089fF89805F02));
 
         // base sepolia testnet
         // PrimusTip primusTip = PrimusTip(address(0x4E78940F0019EbAEDc6F4995D7B8ABf060F7a341));
 
         // base mainnet
-        // PrimusTip primusTip = PrimusTip(address(0xa2e0700a269Be3158c81E4739518b324d4398588));
+        PrimusTip primusTip = PrimusTip(address(0xa2e0700a269Be3158c81E4739518b324d4398588));
 
         // string[] memory sourceNames = new string[](2);
         // sourceNames[0] = "tiktok";
@@ -102,6 +102,18 @@ contract CallScript is Script {
         // TipWithdrawInfo memory recipient = TipWithdrawInfo("x", "wenjun_yuan1", 1744282624);
         // recipients[0] = recipient;
         // primusTip.tipperWithdraw(recipients);
+
+        // TipToken memory token = TipToken({
+        //     tokenType: 1,
+        //     tokenAddress: address(0x0000000000000000000000000000000000000000)
+        // });
+        // TipRecipientInfo memory recipient = TipRecipientInfo({
+        //     idSource: "x",
+        //     id: "wenjun_yuan1",
+        //     amount: 10000000000000000,
+        //     nftIds: new uint256[](0)
+        // });
+        // primusTip.tip{value: 10000000000000000}(token, recipient);
 
         vm.stopBroadcast();
     }

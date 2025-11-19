@@ -20,7 +20,7 @@ contract CallScript is Script {
         vm.startBroadcast(senderPrivateKey);
 
         // pharos testnet
-        // PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0x673D74d95A35B26804475066d9cD1DA3947f4eC3));
+        PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0x673D74d95A35B26804475066d9cD1DA3947f4eC3));
 
         // bsc testnet
         // PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0xC75901570dB65070caDEBB74d6702E299Ac8e019));
@@ -35,7 +35,7 @@ contract CallScript is Script {
         // PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0x083693C148e30b3A231D325366E76b38293FCa10));
 
         // base mainnet
-        PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0x50bd377EB8D4236Bb587AB3FB1eeafd888AEeC58));
+        // PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0x50bd377EB8D4236Bb587AB3FB1eeafd888AEeC58));
 
 
         // uint256 prevrandao;
@@ -47,12 +47,12 @@ contract CallScript is Script {
         console.log("withdrawDelay: ", primusRe.withdrawDelay());
         console.log("feeRecipient: ", primusRe.feeRecipient());
         console.log("fee: ", primusRe.claimFee());
-        // primusRe.setWithdrawDelay(300);
+        // primusRe.setWithdrawDelay(30 days);
         // console.log("withdrawDelay: ", primusRe.withdrawDelay());
-        // primusRe.setClaimFee(150000000000000);
+        // primusRe.setClaimFee(10000000000000000);
         // console.log("fee: ", primusRe.claimFee());
 
-        // RERecord memory record = primusRe.getREInfo(bytes32(0xc43fcd9b3474ab18c89e85f2e757085a8fbb26df978bfd9813b9b1fbd540a991));
+        // RERecord memory record = primusRe.getREInfo(bytes32(0xcfc6968ab5b2a580851e58c4816320423091fc0fb0551beb15921c7a48f5932b));
         // console.log("record remainingAmount:", record.remainingAmount);
         // console.log("record remainingNumber:", record.remainingNumber);
         // console.log("record reSender:", record.reSender);
@@ -61,6 +61,7 @@ contract CallScript is Script {
         // console.log("block.timestamp:", block.timestamp);
         // console.log("amount:", record.amount);
         // console.log("number:", record.number);
+        // console.logBytes(record.checkParams);
 
 
         vm.stopBroadcast();
