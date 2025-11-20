@@ -39,6 +39,7 @@ contract CallScript is Script {
 
         // monad mainnet
         PrimusTip primusTip = PrimusTip(address(0xa2e0700a269Be3158c81E4739518b324d4398588));
+        address primusTipAddres = address(0xa2e0700a269Be3158c81E4739518b324d4398588);
 
         // string[] memory sourceNames = new string[](2);
         // sourceNames[0] = "tiktok";
@@ -67,15 +68,30 @@ contract CallScript is Script {
         // jsonPaths[0] = "$.data.red_id";
 
         // primusTip.addBatchIdSource(sourceNames, urls, jsonPaths);
+        // primusTip.setWithdrawDelay(300);
 
-        // primusTip.setWithdrawDelay(30 days);
+
+    //  for monad mainnet
+    //    bytes memory data = abi.encodeWithSelector(PrimusTip.setWithdrawDelay.selector, uint256(300));
+    //    (bool ok, ) = primusTipAddres.call{gas: 60_000}(data);
+    //    require(ok, "setWithdrawDelay failed");
+
+
         console.log("withdrawDelay: ", primusTip.withdrawDelay());
         console.log("feeRecipient: ", primusTip.feeRecipient());
         console.log("fee: ", primusTip.claimFee());
         // console.log("primusZKTLS:", address(primusTip.primusZKTLS()));
 
         // primusTip.setFeeRecipient(address(0x9717BdADb90a18e040e835b665f9E51eAa101ab1));
-        // primusTip.setClaimFee(50000000000000);
+       // primusTip.setClaimFee(1000000000000000);
+
+
+    //  for monad mainnet
+    //    bytes memory data = abi.encodeWithSelector(PrimusTip.setClaimFee.selector, uint256(1_000_000_000_000_000));
+    //    (bool ok, ) = primusTipAddres.call{gas: 60_000}(data);
+    //    require(ok, "setClaimFee failed");
+
+
         // console.log("fee: ", primusTip.claimFee());
 
         // TipRecord[] memory tipRecord = primusTip.getTipRecordsPaginated(TipRecipient("x", "avzcrypto"), 0, 20);

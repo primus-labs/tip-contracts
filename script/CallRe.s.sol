@@ -38,6 +38,7 @@ contract CallScript is Script {
         // PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0x50bd377EB8D4236Bb587AB3FB1eeafd888AEeC58));
 
         // monad mainnet
+        address primusReAddress = address(0x50bd377EB8D4236Bb587AB3FB1eeafd888AEeC58);
         PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0x50bd377EB8D4236Bb587AB3FB1eeafd888AEeC58));
 
 
@@ -51,8 +52,24 @@ contract CallScript is Script {
         console.log("feeRecipient: ", primusRe.feeRecipient());
         console.log("fee: ", primusRe.claimFee());
         // primusRe.setWithdrawDelay(30 days);
+
+
+    //  for monad mainnet
+    //     bytes memory data = abi.encodeWithSelector(PrimusRedEnvelope.setWithdrawDelay.selector, uint256(300));
+    //    (bool ok, ) = primusReAddress.call{gas: 60_000}(data);
+    //    require(ok, "setWithdrawDelay failed");
         // console.log("withdrawDelay: ", primusRe.withdrawDelay());
+
+
         // primusRe.setClaimFee(10000000000000000);
+
+
+    //  for monad mainnet
+    //     bytes memory data = abi.encodeWithSelector(PrimusRedEnvelope.setClaimFee.selector, uint256(1_000_000_000_000_000));
+    //    (bool ok, ) = primusReAddress.call{gas: 60_000}(data);
+    //    require(ok, "setClaimFee failed");
+
+
         // console.log("fee: ", primusRe.claimFee());
 
         // RERecord memory record = primusRe.getREInfo(bytes32(0xcfc6968ab5b2a580851e58c4816320423091fc0fb0551beb15921c7a48f5932b));
