@@ -55,17 +55,17 @@ contract CallScript is Script {
 
 
     //  for monad mainnet
-    //     bytes memory data = abi.encodeWithSelector(PrimusRedEnvelope.setWithdrawDelay.selector, uint256(300));
+    //    bytes memory data = abi.encodeWithSelector(PrimusRedEnvelope.setWithdrawDelay.selector, uint256(30 days));
     //    (bool ok, ) = primusReAddress.call{gas: 60_000}(data);
     //    require(ok, "setWithdrawDelay failed");
-        // console.log("withdrawDelay: ", primusRe.withdrawDelay());
+    //    console.log("withdrawDelay: ", primusRe.withdrawDelay());
 
 
         // primusRe.setClaimFee(10000000000000000);
 
 
     //  for monad mainnet
-    //     bytes memory data = abi.encodeWithSelector(PrimusRedEnvelope.setClaimFee.selector, uint256(1_000_000_000_000_000));
+    //     bytes memory data = abi.encodeWithSelector(PrimusRedEnvelope.setClaimFee.selector, uint256(3000000000000000000));
     //    (bool ok, ) = primusReAddress.call{gas: 60_000}(data);
     //    require(ok, "setClaimFee failed");
 

@@ -72,7 +72,7 @@ contract CallScript is Script {
 
 
     //  for monad mainnet
-    //    bytes memory data = abi.encodeWithSelector(PrimusTip.setWithdrawDelay.selector, uint256(300));
+    //    bytes memory data = abi.encodeWithSelector(PrimusTip.setWithdrawDelay.selector, uint256(30 days));
     //    (bool ok, ) = primusTipAddres.call{gas: 60_000}(data);
     //    require(ok, "setWithdrawDelay failed");
 
@@ -87,7 +87,7 @@ contract CallScript is Script {
 
 
     //  for monad mainnet
-    //    bytes memory data = abi.encodeWithSelector(PrimusTip.setClaimFee.selector, uint256(1_000_000_000_000_000));
+    //    bytes memory data = abi.encodeWithSelector(PrimusTip.setClaimFee.selector, uint256(3000000000000000000));
     //    (bool ok, ) = primusTipAddres.call{gas: 60_000}(data);
     //    require(ok, "setClaimFee failed");
 
