@@ -22,6 +22,7 @@ lineasepolia = "https://linea-sepolia.infura.io/v3/b6bf7d3508c941499b10025c0776e
 sophontestnet = "https://rpc.testnet.sophon.xyz"
 monadtestnet = "https://testnet-rpc.monad.xyz"
 pharostestnet = "https://testnet.dplabs-internal.com"
+pharosAtlanticTestnet = "https://atlantic.dplabs-internal.com"
 baseSepoliaTestnet = "https://sepolia.base.org"
 
 #mainnet
