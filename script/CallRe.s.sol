@@ -51,10 +51,12 @@ contract CallScript is Script {
         // console.log("block.prevrandao:", prevrandao);
         // console.log("blocknumber:", blocknumber);
 
+        // primusRe.setWithdrawDelay(30 days);
+        // primusRe.setClaimFee(10000000000000000);
+
         console.log("withdrawDelay: ", primusRe.withdrawDelay());
         console.log("feeRecipient: ", primusRe.feeRecipient());
         console.log("fee: ", primusRe.claimFee());
-        // primusRe.setWithdrawDelay(30 days);
 
 
     //  for monad mainnet
@@ -64,7 +66,6 @@ contract CallScript is Script {
     //    console.log("withdrawDelay: ", primusRe.withdrawDelay());
 
 
-        // primusRe.setClaimFee(10000000000000000);
 
 
     //  for monad mainnet

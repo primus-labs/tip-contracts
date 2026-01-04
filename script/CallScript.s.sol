@@ -71,7 +71,8 @@ contract CallScript is Script {
         // jsonPaths[0] = "$.data.red_id";
 
         // primusTip.addBatchIdSource(sourceNames, urls, jsonPaths);
-        // primusTip.setWithdrawDelay(300);
+        // primusTip.setWithdrawDelay(30 days);
+        // primusTip.setClaimFee(10000000000000000);
 
 
     //  for monad mainnet
@@ -86,7 +87,6 @@ contract CallScript is Script {
         // console.log("primusZKTLS:", address(primusTip.primusZKTLS()));
 
         // primusTip.setFeeRecipient(address(0x9717BdADb90a18e040e835b665f9E51eAa101ab1));
-       // primusTip.setClaimFee(1000000000000000);
 
 
     //  for monad mainnet
