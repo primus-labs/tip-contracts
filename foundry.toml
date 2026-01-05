@@ -24,6 +24,7 @@ monadtestnet = "https://testnet-rpc.monad.xyz"
 pharostestnet = "https://testnet.dplabs-internal.com"
 pharosAtlanticTestnet = "https://atlantic.dplabs-internal.com"
 baseSepoliaTestnet = "https://sepolia.base.org"
+hashKeyChainTestnet = "https://testnet.hsk.xyz"
 
 #mainnet
 arbitrumone = "https://arb1.arbitrum.io/rpc"
@@ -37,3 +38,4 @@ scroll = "https://rpc.scroll.io/"
 sophon = "https://rpc.sophon.xyz"
 baseMainnet = "https://mainnet.base.org"
 monad = "https://rpc.monad.xyz"
+hashKeyChain = "https://mainnet.hsk.xyz"
