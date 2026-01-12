@@ -32,7 +32,7 @@ contract CallScript is Script {
         // PrimusTip primusTip = PrimusTip(address(0xD17512B7EC12880Bd94Eca9d774089fF89805F02));
 
         // pharos atlantic testnet
-        PrimusTip primusTip = PrimusTip(address(0x3A83cAB6da93210933D94fC68A093a6983c2BCD1));
+        // PrimusTip primusTip = PrimusTip(address(0x3A83cAB6da93210933D94fC68A093a6983c2BCD1));
 
         // base sepolia testnet
         // PrimusTip primusTip = PrimusTip(address(0x4E78940F0019EbAEDc6F4995D7B8ABf060F7a341));
@@ -43,6 +43,10 @@ contract CallScript is Script {
         // monad mainnet
         // PrimusTip primusTip = PrimusTip(address(0xa2e0700a269Be3158c81E4739518b324d4398588));
         // address primusTipAddres = address(0xa2e0700a269Be3158c81E4739518b324d4398588);
+
+        // hashkeychain testnet
+        PrimusTip primusTip = PrimusTip(address(0xd62A24eF37a62d613f53595B9700DFfdE372701D));
+
 
         // string[] memory sourceNames = new string[](2);
         // sourceNames[0] = "tiktok";
@@ -71,7 +75,7 @@ contract CallScript is Script {
         // jsonPaths[0] = "$.data.red_id";
 
         // primusTip.addBatchIdSource(sourceNames, urls, jsonPaths);
-        // primusTip.setWithdrawDelay(30 days);
+        // primusTip.setWithdrawDelay(300);
         // primusTip.setClaimFee(10000000000000000);
 
 

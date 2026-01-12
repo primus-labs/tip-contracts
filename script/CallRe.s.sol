@@ -23,7 +23,7 @@ contract CallScript is Script {
         // PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0x673D74d95A35B26804475066d9cD1DA3947f4eC3));
 
         // pharos atlantic testnet
-        PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0x7460ba14e2Ba151eaFD2983eB56F76578C79cb47));
+        // PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0x7460ba14e2Ba151eaFD2983eB56F76578C79cb47));
 
         // bsc testnet
         // PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0xC75901570dB65070caDEBB74d6702E299Ac8e019));
@@ -44,6 +44,9 @@ contract CallScript is Script {
         // address primusReAddress = address(0x50bd377EB8D4236Bb587AB3FB1eeafd888AEeC58);
         // PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0x50bd377EB8D4236Bb587AB3FB1eeafd888AEeC58));
 
+        // hashkeychain testnet
+        PrimusRedEnvelope primusRe = PrimusRedEnvelope(address(0x018A793D8984d8ADcA5a7689273fFacBb131972E));
+
 
         // uint256 prevrandao;
         // uint256 blocknumber;
@@ -51,7 +54,7 @@ contract CallScript is Script {
         // console.log("block.prevrandao:", prevrandao);
         // console.log("blocknumber:", blocknumber);
 
-        // primusRe.setWithdrawDelay(30 days);
+        primusRe.setWithdrawDelay(300);
         // primusRe.setClaimFee(10000000000000000);
 
         console.log("withdrawDelay: ", primusRe.withdrawDelay());
