@@ -45,7 +45,11 @@ contract CallScript is Script {
         // address primusTipAddres = address(0xa2e0700a269Be3158c81E4739518b324d4398588);
 
         // hashkeychain testnet
-        PrimusTip primusTip = PrimusTip(address(0xd62A24eF37a62d613f53595B9700DFfdE372701D));
+        // PrimusTip primusTip = PrimusTip(address(0xd62A24eF37a62d613f53595B9700DFfdE372701D));
+
+        // pharos mainnet
+        PrimusTip primusTip = PrimusTip(address(0xa2e0700a269Be3158c81E4739518b324d4398588));
+        // primusTip.setWithdrawDelay(30 days);
 
 
         // string[] memory sourceNames = new string[](2);
