@@ -32,6 +32,13 @@ forge script script/DeployScript.s.sol --rpc-url $RPC_URL --broadcast
 forge script script/UpgradeScript.s.sol --rpc-url $RPC_URL --broadcast
 ```
 
+Primus Tip Contracts are deployed on BNB Smart Chain (BSC) and other EVM-compatible chains like Base, Pharos and Monad, enabling zktls proof on user social handles and tipping feature.
+
+- Network: BNB Smart Chain
+- Chain ID: 56
+- Transfer Contract Address: 0x1fb86db904caf7c12100ea64024e5dfd7505e484
+- Red Pocket Contract Address: 0x083693c148e30b3a231d325366e76b38293fca10
+
 ### Gas Snapshots
 
 ```shell
