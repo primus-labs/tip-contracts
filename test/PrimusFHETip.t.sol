@@ -143,7 +143,7 @@ contract SpfMock {
         uint256 updatedSpentValue = spentValue + amountValue;
 
         // Now mock call the SPF
-        (Spf.SpfParameter memory updatedAmount, Spf.SpfParameter memory updatedSpent) =
+        (, Spf.SpfParameter memory updatedAmount, Spf.SpfParameter memory updatedSpent) =
             PrimusSpf.updateTip(amount, balance, spent);
 
         require(
@@ -180,7 +180,7 @@ contract SpfMock {
 
         uint256 updatedBalanceValue = balanceValue + amountValue;
 
-        Spf.SpfParameter memory updatedBalance = PrimusSpf.addToBalance(amount, balance);
+        (,Spf.SpfParameter memory updatedBalance) = PrimusSpf.addToBalance(amount, balance);
 
         require(updatedBalance.payload.length == 1, "SpfMock.simulateAddToBalance: Invalid output handle");
 
@@ -212,7 +212,7 @@ contract SpfMock {
 
         uint256 updatedBalanceValue = balanceValue - updatedAmountValue;
 
-        (Spf.SpfParameter memory updatedAmount, Spf.SpfParameter memory updatedBalance) =
+        (,Spf.SpfParameter memory updatedAmount, Spf.SpfParameter memory updatedBalance) =
             PrimusSpf.withdraw(uint64(amountValue), balance);
 
         updateDecryptedValue(updatedAmount, updatedAmountValue);
