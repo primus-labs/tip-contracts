@@ -4,12 +4,14 @@ pragma solidity ^0.8.20;
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+
 import {IPrimusZKTLS, Attestation} from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
 import {TipToken, RESendParam, RERecord, ERC20_TYPE, NATIVE_TYPE} from "./types/Common.sol";
 import "./utils/StringUtils.sol";
 import "./utils/JsonParser.sol";
 
-contract PrimusRedEnvelope is OwnableUpgradeable {
+contract PrimusRedEnvelope is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using StringUtils for string;
     using JsonParser for string;
 
@@ -48,6 +50,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         uint256 claimFee_
     ) public initializer {
         __Ownable_init(owner);
+        __ReentrancyGuard_init();
         primusZKTLS = primusZKTLS_;
         feeRecipient = feeRecipient_;
         claimFee = claimFee_;
@@ -62,7 +65,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
      * @param token The send token of the red envelope.
      * @param sendParam The red envelope informations.
      */
-    function reSend(TipToken memory token, RESendParam calldata sendParam) external payable {
+    function reSend(TipToken memory token, RESendParam calldata sendParam) external payable nonReentrant {
         require(token.tokenType == ERC20_TYPE || token.tokenType == NATIVE_TYPE, "error token type");
         if (token.tokenType == ERC20_TYPE) {
             require(token.tokenAddress != address(0), "error token addr");
@@ -98,7 +101,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
      * @param reId The red envelope id.
      * @param att Attestation to prove that the red envelope conditions are met.
      */
-    function reClaim(bytes32 reId, Attestation calldata att) external payable {
+    function reClaim(bytes32 reId, Attestation calldata att) external payable nonReentrant {
         RERecord storage reRecord = reRecords[reId];
         require(reRecord.id != bytes32(0), "no reId");
         require(reRecord.remainingNumber > 0, "All claimed");
@@ -119,7 +122,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         emit REClaimEvent(reRecord.id, userAddr, userId, amount, reRecord.number - reRecord.remainingNumber, (uint64)(block.timestamp), reRecord.tokenAddress);
     }
 
-    function reSenderWithdraw(bytes32 reId) external {
+    function reSenderWithdraw(bytes32 reId) external nonReentrant {
         RERecord storage reRecord = reRecords[reId];
         require(reRecord.id != bytes32(0), "no reId");
         require(reRecord.remainingAmount > 0, "no fund");
