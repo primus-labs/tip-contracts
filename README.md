@@ -2,6 +2,10 @@
 
 Primus tip contracts.
 
+## Deployed versions
+
+See [deployment records](DEPLOYMENTS.md).
+
 ## Usage
 
 ### Build
