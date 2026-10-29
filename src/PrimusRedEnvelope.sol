@@ -3,11 +3,11 @@
 pragma solidity ^0.8.20;
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+
 import {IPrimusZKTLS, Attestation} from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
 import {TipToken, RESendParam, RERecord, ERC20_TYPE, NATIVE_TYPE} from "./types/Common.sol";
-import "./utils/StringUtils.sol";
-import "./utils/JsonParser.sol";
+import {StringUtils} from "./utils/StringUtils.sol";
+import {JsonParser} from "./utils/JsonParser.sol";
 
 contract PrimusRedEnvelope is OwnableUpgradeable {
     using StringUtils for string;
@@ -39,6 +39,8 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
 
     uint256 public idCounter;
     // IPrimusZKTLS contract
+    // Preserve the deployed primusZKTLS() getter ABI.
+    // forge-lint: disable-next-line(mixed-case-variable)
     IPrimusZKTLS public primusZKTLS;
     // claim fee
     uint256 public claimFee;
@@ -57,16 +59,16 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
      * @dev Initialize function to set the owner of the contract.
      *      This function is called during the contract deployment.
      * @param owner The contract owner.
-     * @param primusZKTLS_ The IPrimusZKTLS contract address.
+     * @param primusVerifier_ The IPrimusZKTLS contract address.
      * @param feeRecipient_ The fee recipient address.
      * @param claimFee_ The claim fee.
      */
-    function initialize(address owner, IPrimusZKTLS primusZKTLS_, address feeRecipient_, uint256 claimFee_)
+    function initialize(address owner, IPrimusZKTLS primusVerifier_, address feeRecipient_, uint256 claimFee_)
         public
         initializer
     {
         __Ownable_init(owner);
-        primusZKTLS = primusZKTLS_;
+        primusZKTLS = primusVerifier_;
         feeRecipient = feeRecipient_;
         claimFee = claimFee_;
         withdrawDelay = 30 days;
@@ -288,6 +290,8 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         return (userName.addPrefix(string.concat(params, "&")), att.recipient);
     }
 
+    // Preserve the deployed getREInfo selector.
+    // forge-lint: disable-next-line(mixed-case-function)
     function getREInfo(bytes32 reId) external view returns (RERecord memory) {
         return reRecords[reId];
     }
@@ -319,10 +323,12 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
 
     /**
      *  @dev set IPrimusZKTLS contract instance
-     *  @param primusZKTLS_ The address of the IPrimusZKTLS contract
+     *  @param primusVerifier_ The address of the IPrimusZKTLS contract
      */
-    function setPrimusZKTLS(IPrimusZKTLS primusZKTLS_) external onlyOwner {
-        primusZKTLS = primusZKTLS_;
+    // Preserve the deployed setPrimusZKTLS selector.
+    // forge-lint: disable-next-line(mixed-case-function)
+    function setPrimusZKTLS(IPrimusZKTLS primusVerifier_) external onlyOwner {
+        primusZKTLS = primusVerifier_;
     }
 
     /**
@@ -392,6 +398,8 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
     }
 
     function _generateReId(uint256 idCnt) internal view returns (bytes32) {
+        // Keep this two-word hash explicit in Solidity; assembly adds no required behavior.
+        // forge-lint: disable-next-line(asm-keccak256)
         return keccak256(abi.encodePacked(block.chainid, idCnt));
     }
 }

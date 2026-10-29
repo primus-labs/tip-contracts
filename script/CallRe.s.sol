@@ -4,13 +4,12 @@ pragma solidity ^0.8.20;
 import {Script} from "forge-std/Script.sol";
 import {console} from "forge-std/console.sol";
 import {PrimusRedEnvelope} from "../src/PrimusRedEnvelope.sol";
-import {TipWithdrawInfo, TipRecord, TipRecipient, RERecord} from "../src/types/Common.sol";
+
 import {
     Attestation,
     AttNetworkRequest,
     AttNetworkResponseResolve,
-    Attestor,
-    IPrimusZKTLS
+    Attestor
 } from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
 
 contract CallScript is Script {
@@ -153,9 +152,9 @@ contract CallScript is Script {
     }
 
     function fromHexChar(uint8 c) internal pure returns (uint8) {
-        if (bytes1(c) >= "0" && bytes1(c) <= "9") return c - uint8(bytes1("0"));
-        if (bytes1(c) >= "a" && bytes1(c) <= "f") return 10 + c - uint8(bytes1("a"));
-        if (bytes1(c) >= "A" && bytes1(c) <= "F") return 10 + c - uint8(bytes1("A"));
+        if (c >= 48 && c <= 57) return c - 48;
+        if (c >= 97 && c <= 102) return 10 + c - 97;
+        if (c >= 65 && c <= 70) return 10 + c - 65;
         revert("Invalid hex character");
     }
 }

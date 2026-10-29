@@ -16,9 +16,9 @@ import {
     NATIVE_TYPE,
     ERC721_TYPE
 } from "./types/Common.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import "./utils/StringUtils.sol";
-import "./utils/JsonParser.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {StringUtils} from "./utils/StringUtils.sol";
+import {JsonParser} from "./utils/JsonParser.sol";
 
 /**
  * @dev The Primus Tip contract is used to manage users’ tip funds.
@@ -63,6 +63,8 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     );
 
     // IPrimusZKTLS contract
+    // Preserve the deployed primusZKTLS() getter ABI.
+    // forge-lint: disable-next-line(mixed-case-variable)
     IPrimusZKTLS public primusZKTLS;
     // claim fee
     uint256 public claimFee;
@@ -79,16 +81,16 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
      * @dev Initialize function to set the owner of the contract.
      *      This function is called during the contract deployment.
      * @param owner The contract owner.
-     * @param primusZKTLS_ The IPrimusZKTLS contract address.
+     * @param primusVerifier_ The IPrimusZKTLS contract address.
      * @param feeRecipient_ The fee recipient address.
      * @param claimFee_ The claim fee.
      */
-    function initialize(address owner, IPrimusZKTLS primusZKTLS_, address feeRecipient_, uint256 claimFee_)
+    function initialize(address owner, IPrimusZKTLS primusVerifier_, address feeRecipient_, uint256 claimFee_)
         public
         initializer
     {
         __Ownable_init(owner);
-        primusZKTLS = primusZKTLS_;
+        primusZKTLS = primusVerifier_;
         feeRecipient = feeRecipient_;
         claimFee = claimFee_;
         withdrawDelay = 30 days;
@@ -365,10 +367,12 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
 
     /**
      *  @dev set IPrimusZKTLS contract instance
-     *  @param primusZKTLS_ The address of the IPrimusZKTLS contract
+     *  @param primusVerifier_ The address of the IPrimusZKTLS contract
      */
-    function setPrimusZKTLS(IPrimusZKTLS primusZKTLS_) external onlyOwner {
-        primusZKTLS = primusZKTLS_;
+    // Preserve the deployed setPrimusZKTLS selector.
+    // forge-lint: disable-next-line(mixed-case-function)
+    function setPrimusZKTLS(IPrimusZKTLS primusVerifier_) external onlyOwner {
+        primusZKTLS = primusVerifier_;
     }
 
     /**

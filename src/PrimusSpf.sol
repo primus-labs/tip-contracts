@@ -1,4 +1,7 @@
-import "@sunscreen/contracts/Spf.sol";
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import {Spf} from "@sunscreen/contracts/Spf.sol";
 
 /**
  * Calls to the off-chain Secure Processing Framework (SPF) library for Primus FHE.

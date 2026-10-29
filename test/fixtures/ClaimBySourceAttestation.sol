@@ -12,14 +12,14 @@ import {
 library ClaimBySourceAttestation {
     function load() internal pure returns (Attestation memory att) {
         att.recipient = 0x6311c8a4F9CCa5a8FDFbc7a95FC565225d253c21;
-        att.request = AttNetworkRequest(
-            "https://api.x.com/1.1/account/settings.json?include_ext_sharing_audiospaces_listening_data_with_followers=true&include_mention_filter=true&include_nsfw_user_flag=true&include_nsfw_admin_flag=true&include_ranked_timeline=true&include_alt_text_compose=true&include_ext_dm_av_call_settings=true&ext=ssoConnections&include_country_code=true&include_ext_dm_nsfw_media_filter=true",
-            "",
-            "GET",
-            ""
-        );
+        att.request = AttNetworkRequest({
+            url: "https://api.x.com/1.1/account/settings.json?include_ext_sharing_audiospaces_listening_data_with_followers=true&include_mention_filter=true&include_nsfw_user_flag=true&include_nsfw_admin_flag=true&include_ranked_timeline=true&include_alt_text_compose=true&include_ext_dm_av_call_settings=true&ext=ssoConnections&include_country_code=true&include_ext_dm_nsfw_media_filter=true",
+            header: "",
+            method: "GET",
+            body: ""
+        });
         att.reponseResolve = new AttNetworkResponseResolve[](1);
-        att.reponseResolve[0] = AttNetworkResponseResolve("", "", "$.screen_name");
+        att.reponseResolve[0] = AttNetworkResponseResolve({keyName: "", parseType: "", parsePath: "$.screen_name"});
         att.data = "{}";
         att.attConditions =
         "[{\"op\":\"STREQ\",\"field\":\"$.screen_name\",\"value\":\"daegu3071\",\"reveal_id\":null}]";
@@ -28,7 +28,7 @@ library ClaimBySourceAttestation {
         att.timestamp = 1793198320005;
         att.attestors = new Attestor[](1);
         att.attestors[0] =
-            Attestor(address(bytes20(hex"5ed3176045f68617b0958a61ac1868875c98c14d")), "https://primuslabs.xyz");
+            Attestor({attestorAddr: 0x5Ed3176045F68617B0958a61ac1868875C98C14d, url: "https://primuslabs.xyz"});
         att.signatures = new bytes[](1);
         att.signatures[0] =
             hex"3cfc1c31f41a8534371759e54e9c54a483afb8b947481157d93aedf861d0e0130ccd532004ae3f98ff02a25f9186d6c855966d7bb22c1e2f4c4d02ec125b34931c";

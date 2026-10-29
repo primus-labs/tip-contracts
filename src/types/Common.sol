@@ -84,6 +84,8 @@ struct IdSource {
     string jsonPath;
 }
 
+// Preserve the public struct type name used by integrations.
+// forge-lint: disable-next-line(pascal-case-struct)
 struct RESendParam {
     // Red envelope type, 0 means random red envelope, 1 means average red envelope.
     uint32 reType;
@@ -97,6 +99,8 @@ struct RESendParam {
     bytes checkParams;
 }
 
+// Preserve the public struct type name used by integrations.
+// forge-lint: disable-next-line(pascal-case-struct)
 struct RERecord {
     // The red envelope id.
     bytes32 id;

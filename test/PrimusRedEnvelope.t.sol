@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
+import {Attestation} from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "forge-std/Test.sol";
-import "forge-std/console.sol";
-import "src/PrimusTip.sol";
-import "src/types/Common.sol";
-import "src/utils/StringUtils.sol";
-import "./PrimusTestNFT.sol";
-import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {Test, Vm} from "forge-std/Test.sol";
+import {console} from "forge-std/console.sol";
+
+import {TipToken, NATIVE_TYPE, RESendParam} from "src/types/Common.sol";
+import {StringUtils} from "src/utils/StringUtils.sol";
 
 import {
-    Attestation as PrimusAttestation,
     AttNetworkRequest,
     AttNetworkResponseResolve,
     Attestor,
@@ -22,11 +21,11 @@ uint32 constant RE_RANDOM = 0;
 uint32 constant RE_AVERAGE = 1;
 
 uint32 constant FOLLOWING_CHECK_TYPE = 0;
-string constant following_screen_name = "primus_labs";
+string constant FOLLOWING_SCREEN_NAME = "primus_labs";
 
-bytes32 constant eventSig = keccak256("RESendEvent(bytes32,address,uint32,address,uint256,uint32,uint32,uint64)");
-bytes32 constant claimSig = keccak256("REClaimEvent(bytes32,address,string,uint256,uint32,uint64,address)");
-bytes32 constant withdrawSig = keccak256("RESWithdrawEvent(bytes32,address,uint256,uint32,uint64)");
+bytes32 constant EVENT_SIG = keccak256("RESendEvent(bytes32,address,uint32,address,uint256,uint32,uint32,uint64)");
+bytes32 constant CLAIM_SIG = keccak256("REClaimEvent(bytes32,address,string,uint256,uint32,uint64,address)");
+bytes32 constant WITHDRAW_SIG = keccak256("RESWithdrawEvent(bytes32,address,uint256,uint32,uint64)");
 
 contract ERC20Mock is IERC20 {
     mapping(address => uint256) public balanceOf;
@@ -66,7 +65,7 @@ contract PrimusZKTLSMock is IPrimusZKTLS {
 contract PrimusRedEnvelopeTest is Test {
     using StringUtils for string;
     PrimusRedEnvelope public primusRedEnvelope;
-    PrimusZKTLSMock public primusZKTLS;
+    PrimusZKTLSMock public primusVerifier;
     address public owner = address(1);
     address public tipper = address(2);
     address public feeRecipient = address(0x456);
@@ -77,10 +76,10 @@ contract PrimusRedEnvelopeTest is Test {
 
     function setUp() public {
         vm.startPrank(owner);
-        primusZKTLS = new PrimusZKTLSMock();
+        primusVerifier = new PrimusZKTLSMock();
         primusRedEnvelope = new PrimusRedEnvelope();
         console.log("primusRedEnvelope=", address(primusRedEnvelope));
-        primusRedEnvelope.initialize(owner, primusZKTLS, feeRecipient, 0);
+        primusRedEnvelope.initialize(owner, primusVerifier, feeRecipient, 0);
         vm.stopPrank();
     }
 
@@ -88,32 +87,28 @@ contract PrimusRedEnvelopeTest is Test {
         vm.startPrank(tipper);
         vm.recordLogs();
         vm.deal(tipper, 1 ether);
-        TipToken memory nativeToken = TipToken(NATIVE_TYPE, erc20Token);
+        TipToken memory nativeToken = TipToken({tokenType: NATIVE_TYPE, tokenAddress: erc20Token});
         uint32 number = 1;
-        RESendParam memory reSendParam = RESendParam(RE_RANDOM, number, 100, address(primusRedEnvelope), "");
+        RESendParam memory reSendParam = RESendParam({
+            reType: RE_RANDOM, number: number, amount: 100, checkContract: address(primusRedEnvelope), checkParams: ""
+        });
         // Call contract
-        (bool success, bytes memory data) = address(primusRedEnvelope).call{value: 100}(
+        (bool success,) = address(primusRedEnvelope).call{value: 100}(
             abi.encodeWithSelector(primusRedEnvelope.reSend.selector, nativeToken, reSendParam)
         );
+        assertTrue(success, "reSend failed");
         // Resolve evnt
-        console.logBytes32(eventSig);
+        console.logBytes32(EVENT_SIG);
         Vm.Log[] memory logs = vm.getRecordedLogs();
         console.log("logs.length=", logs.length);
         assertEq(logs.length, 1);
         console.logBytes32(logs[0].topics[0]);
         for (uint256 i = 0; i < logs.length; ++i) {
             Vm.Log memory log = logs[i];
-            if (log.topics[0] == eventSig) {
+            if (log.topics[0] == EVENT_SIG) {
                 bytes32 id = log.topics[1];
-                (
-                    address reSender,
-                    uint32 tokenType,
-                    address tokenAddress,
-                    uint256 amount,
-                    uint32 reType,
-                    uint32 number,
-                    uint64 timestamp
-                ) = abi.decode(log.data, (address, uint32, address, uint256, uint32, uint32, uint64));
+                (,,, uint256 amount,,,) =
+                    abi.decode(log.data, (address, uint32, address, uint256, uint32, uint32, uint64));
 
                 console.log("id=", uintToString(uint256(id)));
                 assertEq(amount, 100);
@@ -128,13 +123,20 @@ contract PrimusRedEnvelopeTest is Test {
         //-----Send red packet
         // Transfer 1 eth to tipper
         vm.deal(tipper, 1 ether);
-        TipToken memory nativeToken = TipToken(NATIVE_TYPE, erc20Token);
+        TipToken memory nativeToken = TipToken({tokenType: NATIVE_TYPE, tokenAddress: erc20Token});
         uint32 number = 2;
-        bytes memory params = abi.encode(FOLLOWING_CHECK_TYPE, following_screen_name);
-        RESendParam memory reSendParam = RESendParam(RE_RANDOM, number, 100, address(primusRedEnvelope), params);
-        (bool success, bytes memory data) = address(primusRedEnvelope).call{value: 100}(
+        bytes memory params = abi.encode(FOLLOWING_CHECK_TYPE, FOLLOWING_SCREEN_NAME);
+        RESendParam memory reSendParam = RESendParam({
+            reType: RE_RANDOM,
+            number: number,
+            amount: 100,
+            checkContract: address(primusRedEnvelope),
+            checkParams: params
+        });
+        (bool success,) = address(primusRedEnvelope).call{value: 100}(
             abi.encodeWithSelector(primusRedEnvelope.reSend.selector, nativeToken, reSendParam)
         );
+        assertTrue(success, "reSend failed");
         Vm.Log[] memory logs = vm.getRecordedLogs();
         Vm.Log memory log = logs[0];
         bytes32 id = log.topics[1];
@@ -151,8 +153,8 @@ contract PrimusRedEnvelopeTest is Test {
         Vm.Log[] memory claimLogs = vm.getRecordedLogs();
         console.log("claimLogs.length=", claimLogs.length);
         assertEq(claimLogs.length, 1);
-        console.logBytes32(claimSig);
-        assertEq(claimLogs[0].topics[0], claimSig);
+        console.logBytes32(CLAIM_SIG);
+        assertEq(claimLogs[0].topics[0], CLAIM_SIG);
         console.log("after claim:", attestation.recipient.balance);
         assertNotEq(attestation.recipient.balance, 0);
         vm.stopPrank();
@@ -165,13 +167,20 @@ contract PrimusRedEnvelopeTest is Test {
         // Transfer 1 eth to tipper
         vm.deal(tipper, 1 ether);
         uint256 balanceBefore = tipper.balance;
-        TipToken memory nativeToken = TipToken(NATIVE_TYPE, erc20Token);
+        TipToken memory nativeToken = TipToken({tokenType: NATIVE_TYPE, tokenAddress: erc20Token});
         uint32 number = 2;
-        bytes memory params = abi.encode(FOLLOWING_CHECK_TYPE, following_screen_name);
-        RESendParam memory reSendParam = RESendParam(RE_RANDOM, number, 100, address(primusRedEnvelope), params);
-        (bool success, bytes memory data) = address(primusRedEnvelope).call{value: 100}(
+        bytes memory params = abi.encode(FOLLOWING_CHECK_TYPE, FOLLOWING_SCREEN_NAME);
+        RESendParam memory reSendParam = RESendParam({
+            reType: RE_RANDOM,
+            number: number,
+            amount: 100,
+            checkContract: address(primusRedEnvelope),
+            checkParams: params
+        });
+        (bool success,) = address(primusRedEnvelope).call{value: 100}(
             abi.encodeWithSelector(primusRedEnvelope.reSend.selector, nativeToken, reSendParam)
         );
+        assertTrue(success, "reSend failed");
         Vm.Log[] memory logs = vm.getRecordedLogs();
         Vm.Log memory log = logs[0];
         bytes32 id = log.topics[1];
@@ -192,9 +201,9 @@ contract PrimusRedEnvelopeTest is Test {
         Vm.Log[] memory withdrawLogs = vm.getRecordedLogs();
         console.log("withdraw.length=", withdrawLogs.length);
         assertEq(withdrawLogs.length, 1);
-        console.logBytes32(withdrawSig);
+        console.logBytes32(WITHDRAW_SIG);
         console.log("after withdraw:", tipper.balance);
-        assertEq(withdrawLogs[0].topics[0], withdrawSig);
+        assertEq(withdrawLogs[0].topics[0], WITHDRAW_SIG);
         assertEq(tipper.balance, balanceBefore);
     }
 
@@ -205,13 +214,20 @@ contract PrimusRedEnvelopeTest is Test {
         // Transfer 1 eth to tipper
         vm.deal(tipper, 1 ether);
         uint256 balanceBefore = tipper.balance;
-        TipToken memory nativeToken = TipToken(NATIVE_TYPE, erc20Token);
+        TipToken memory nativeToken = TipToken({tokenType: NATIVE_TYPE, tokenAddress: erc20Token});
         uint32 number = 2;
-        bytes memory params = abi.encode(FOLLOWING_CHECK_TYPE, following_screen_name);
-        RESendParam memory reSendParam = RESendParam(RE_RANDOM, number, 100, address(primusRedEnvelope), params);
-        (bool success, bytes memory data) = address(primusRedEnvelope).call{value: 100}(
+        bytes memory params = abi.encode(FOLLOWING_CHECK_TYPE, FOLLOWING_SCREEN_NAME);
+        RESendParam memory reSendParam = RESendParam({
+            reType: RE_RANDOM,
+            number: number,
+            amount: 100,
+            checkContract: address(primusRedEnvelope),
+            checkParams: params
+        });
+        (bool success,) = address(primusRedEnvelope).call{value: 100}(
             abi.encodeWithSelector(primusRedEnvelope.reSend.selector, nativeToken, reSendParam)
         );
+        assertTrue(success, "reSend failed");
         Vm.Log[] memory logs = vm.getRecordedLogs();
         Vm.Log memory log = logs[0];
         bytes32 id = log.topics[1];
@@ -228,11 +244,11 @@ contract PrimusRedEnvelopeTest is Test {
         Vm.Log[] memory claimLogs = vm.getRecordedLogs();
         console.log("claimLogs.length=", claimLogs.length);
         assertEq(claimLogs.length, 1);
-        console.logBytes32(claimSig);
-        assertEq(claimLogs[0].topics[0], claimSig);
+        console.logBytes32(CLAIM_SIG);
+        assertEq(claimLogs[0].topics[0], CLAIM_SIG);
         console.log("after claim:", attestation.recipient.balance);
         assertNotEq(attestation.recipient.balance, 0);
-        (address recipient, string memory userId, uint256 claimAmount, uint32 reIndex, uint64 timestamp) =
+        (address recipient,, uint256 claimAmount, uint32 reIndex,) =
             abi.decode(claimLogs[0].data, (address, string, uint256, uint32, uint64));
         console.log("recipient=", recipient);
         console.log("claim reIndex=", reIndex);
@@ -255,9 +271,9 @@ contract PrimusRedEnvelopeTest is Test {
         Vm.Log[] memory withdrawLogs = vm.getRecordedLogs();
         console.log("withdraw.length=", withdrawLogs.length);
         assertEq(withdrawLogs.length, 1);
-        console.logBytes32(withdrawSig);
+        console.logBytes32(WITHDRAW_SIG);
         console.log("after withdraw:", tipper.balance);
-        assertEq(withdrawLogs[0].topics[0], withdrawSig);
+        assertEq(withdrawLogs[0].topics[0], WITHDRAW_SIG);
         assertEq(tipper.balance + claimAmount, balanceBefore);
     }
 
@@ -282,7 +298,7 @@ contract PrimusRedEnvelopeTest is Test {
             keyName: "following", parseType: "", parsePath: "$.data.user.result.relationship_perspectives.following"
         });
         response[1] = AttNetworkResponseResolve({
-            keyName: "following_screen_name", parseType: "", parsePath: "$.data.user.result.core.screen_name"
+            keyName: "FOLLOWING_SCREEN_NAME", parseType: "", parsePath: "$.data.user.result.core.screen_name"
         });
 
         Attestor[] memory attesters = new Attestor[](1);
@@ -338,7 +354,7 @@ contract PrimusRedEnvelopeTest is Test {
         bytes memory buffer = new bytes(digits);
         while (_value != 0) {
             digits -= 1;
-            buffer[digits] = bytes1(uint8(48 + _value % 10)); // 48 是 '0' 的 ASCII 码
+            buffer[digits] = bytes("0123456789")[_value % 10];
             _value /= 10;
         }
         return string(buffer);

@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {IPrimusZKTLS, Attestation} from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
 import {
     ERC20_TYPE,
@@ -14,13 +16,13 @@ import {
     TipRecipient,
     TipToken
 } from "./types/Common.sol";
-import "./PrimusSpf.sol";
-import "./utils/Currency.sol";
-import "./utils/JsonParser.sol";
-import "./utils/StringUtils.sol";
+import {PrimusSpf} from "./PrimusSpf.sol";
+import {Currency} from "./utils/Currency.sol";
+import {JsonParser} from "./utils/JsonParser.sol";
+import {StringUtils} from "./utils/StringUtils.sol";
 
-import "@sunscreen/contracts/Spf.sol";
-import "@sunscreen/contracts/TfheThresholdDecryption.sol";
+import {Spf} from "@sunscreen/contracts/Spf.sol";
+import {TfheThresholdDecryption} from "@sunscreen/contracts/TfheThresholdDecryption.sol";
 
 /**
  * @title PrimusFHETip
@@ -82,6 +84,8 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
     event WithdrawEvent(address indexed recipient, uint64 withdrawTime, uint256 amount);
 
     // IPrimusZKTLS contract
+    // Preserve the deployed primusZKTLS() getter ABI.
+    // forge-lint: disable-next-line(mixed-case-variable)
     IPrimusZKTLS public primusZKTLS;
 
     /// Constant fee per tip for claiming tips, paid by the claimer.
@@ -156,6 +160,11 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
      * @param token The tip token to check.
      */
     modifier isValidEncryptedTokenType(TipToken memory token) {
+        _checkEncryptedTokenType(token);
+        _;
+    }
+
+    function _checkEncryptedTokenType(TipToken memory token) private pure {
         if (token.tokenType == ERC20_TYPE) {
             require(token.tokenAddress != address(0), "ERC20 token address is zero");
         } else if (token.tokenType == NATIVE_TYPE) {
@@ -164,7 +173,6 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
         } else {
             revert("Invalid token type, only supports ERC20 and native tokens");
         }
-        _;
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -183,7 +191,7 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
         // which always costs 50 gwei per gas. The callback expects to use
         // 100,000 gas.
 
-        return gas < 0 ? 100000 * 50 gwei : uint256(gas);
+        return gas < 0 ? 100000 * 50 gwei : SafeCast.toUint256(gas);
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -195,7 +203,7 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
      * called during the contract deployment.
      *
      * @param owner The contract owner.
-     * @param primusZKTLS_ The IPrimusZKTLS contract address.
+     * @param primusVerifier_ The IPrimusZKTLS contract address.
      * @param feeRecipient_ The fee recipient address.
      * @param claimFee_ The claim fee.
      * @param gasCost_ The gas cost for the decryption oracle. If negative, it will be set
@@ -203,7 +211,7 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
      */
     function initialize(
         address owner,
-        IPrimusZKTLS primusZKTLS_,
+        IPrimusZKTLS primusVerifier_,
         address feeRecipient_,
         uint256 claimFee_,
         int256 gasCost_
@@ -211,7 +219,7 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
         __Ownable_init(owner);
 
         // Set up the library contract locations
-        primusZKTLS = primusZKTLS_;
+        primusZKTLS = primusVerifier_;
 
         // Set the fee recipient and claim fee
         feeRecipient = feeRecipient_;
@@ -256,10 +264,12 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
     /**
      *  Set IPrimusZKTLS contract instance
      *
-     *  @param primusZKTLS_ The address of the IPrimusZKTLS contract
+     *  @param primusVerifier_ The address of the IPrimusZKTLS contract
      */
-    function setPrimusZKTLS(IPrimusZKTLS primusZKTLS_) external onlyOwner {
-        primusZKTLS = primusZKTLS_;
+    // Preserve the deployed setPrimusZKTLS selector.
+    // forge-lint: disable-next-line(mixed-case-function)
+    function setPrimusZKTLS(IPrimusZKTLS primusVerifier_) external onlyOwner {
+        primusZKTLS = primusVerifier_;
     }
 
     /**
@@ -339,7 +349,7 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
             nativeDeposits[msg.sender] += depositAmount.weiToGweiChecked();
         }
 
-        emit DepositEvent(msg.sender, token, uint64(depositAmount), uint64(block.timestamp));
+        emit DepositEvent(msg.sender, token, SafeCast.toUint64(depositAmount), SafeCast.toUint64(block.timestamp));
     }
 
     /**
@@ -688,7 +698,7 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
         // Check that the user has enough balance to withdraw the requested
         // amount. Runs using the SPF off-chain service.
         (Spf.SpfParameter memory updatedAmount, Spf.SpfParameter memory updatedBalance) =
-            PrimusSpf.withdraw(uint64(amount), balance);
+            PrimusSpf.withdraw(SafeCast.toUint64(amount), balance);
 
         // Update the encrypted balance.
         if (token.tokenType == ERC20_TYPE) {

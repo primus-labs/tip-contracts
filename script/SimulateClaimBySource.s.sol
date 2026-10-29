@@ -16,7 +16,7 @@ contract SimulateClaimBySource is Script {
         require(block.chainid == 8453, "Use a Base mainnet fork");
         PrimusTip tip = PrimusTip(0xa2e0700a269Be3158c81E4739518b324d4398588);
         Attestation memory att = ClaimBySourceAttestation.load();
-        TipRecipient memory account = TipRecipient("x", "daegu3071");
+        TipRecipient memory account = TipRecipient({idSource: "x", id: "daegu3071"});
         TipRecord[] memory records = tip.getTipRecords(account);
         uint256 amount;
         for (uint256 i; i < records.length; ++i) {
@@ -40,7 +40,7 @@ contract SimulateClaimBySource is Script {
         require(block.chainid == 8453, "Use a Base mainnet fork");
         PrimusTip tip = PrimusTip(0xa2e0700a269Be3158c81E4739518b324d4398588);
         address claimant = 0x6311c8a4F9CCa5a8FDFbc7a95FC565225d253c21;
-        TipRecipient memory account = TipRecipient("x", "daegu3071");
+        TipRecipient memory account = TipRecipient({idSource: "x", id: "daegu3071"});
         TipRecord[] memory records = tip.getTipRecords(account);
         uint256 amount;
         for (uint256 i; i < records.length; ++i) {

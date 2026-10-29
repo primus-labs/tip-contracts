@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "forge-std/Test.sol";
-import "forge-std/console.sol";
+import {Test} from "forge-std/Test.sol";
+import {console} from "forge-std/console.sol";
 import {StringUtils} from "../src/utils/StringUtils.sol";
-import "../src/utils/JsonParser.sol";
+import {JsonParser} from "../src/utils/JsonParser.sol";
 
 contract StringUtilsTest is Test {
     using StringUtils for string;

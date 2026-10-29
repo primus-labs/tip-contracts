@@ -1,20 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "forge-std/Test.sol";
-import "forge-std/console.sol";
-
-import "src/types/Common.sol";
-import "src/utils/StringUtils.sol";
-
-import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {StringUtils} from "src/utils/StringUtils.sol";
 
 import {
     Attestation,
     AttNetworkRequest,
     AttNetworkResponseResolve,
-    Attestor,
-    IPrimusZKTLS
+    Attestor
 } from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
 
 library TestUtils {
@@ -165,7 +158,7 @@ library TestUtils {
         bytes memory buffer = new bytes(digits);
         while (_value != 0) {
             digits -= 1;
-            buffer[digits] = bytes1(uint8(48 + _value % 10)); // 48 是 '0' 的 ASCII 码
+            buffer[digits] = bytes("0123456789")[_value % 10];
             _value /= 10;
         }
         return string(buffer);

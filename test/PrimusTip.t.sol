@@ -1,22 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
+import {Attestation} from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "forge-std/Test.sol";
-import "forge-std/console.sol";
-import "src/PrimusTip.sol";
-import "src/types/Common.sol";
-import "src/utils/StringUtils.sol";
-import "./PrimusTestNFT.sol";
-import "./TestUtils.sol";
+import {Test} from "forge-std/Test.sol";
+import {console} from "forge-std/console.sol";
+import {PrimusTip} from "src/PrimusTip.sol";
+import {TipToken, TipRecipientInfo, TipRecipient, TipRecord, TipWithdrawInfo} from "src/types/Common.sol";
+import {StringUtils} from "src/utils/StringUtils.sol";
+import {PrimusTestNFT} from "./PrimusTestNFT.sol";
+import {TestUtils} from "./TestUtils.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
-import {
-    Attestation as PrimusAttestation,
-    AttNetworkRequest,
-    AttNetworkResponseResolve,
-    Attestor,
-    IPrimusZKTLS
-} from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
+import {IPrimusZKTLS} from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
 
 contract ERC20Mock is IERC20 {
     mapping(address => uint256) public balanceOf;
@@ -56,7 +52,7 @@ contract PrimusZKTLSMock is IPrimusZKTLS {
 contract PrimusTipTest is Test {
     using StringUtils for string;
     PrimusTip public primusTip;
-    PrimusZKTLSMock public primusZKTLS;
+    PrimusZKTLSMock public primusVerifier;
     address public owner = address(1);
     address public tipper = address(2);
     address public feeRecipient = address(0x456);
@@ -67,10 +63,10 @@ contract PrimusTipTest is Test {
 
     function setUp() public {
         vm.startPrank(owner);
-        primusZKTLS = new PrimusZKTLSMock();
+        primusVerifier = new PrimusZKTLSMock();
         primusTip = new PrimusTip();
         console.log("primusTip=", address(primusTip));
-        primusTip.initialize(owner, primusZKTLS, feeRecipient, 0);
+        primusTip.initialize(owner, primusVerifier, feeRecipient, 0);
 
         string[] memory sourceNames = new string[](3);
         sourceNames[0] = "tiktok";
@@ -220,27 +216,31 @@ contract PrimusTipTest is Test {
         console.log("initialBalance", initialBalance);
 
         TipWithdrawInfo[] memory recipients = new TipWithdrawInfo[](1);
-        TipRecord memory tipRecord = primusTip.getTipRecords(TipRecipient("tiktok", "user123"))[0];
+        TipRecord memory tipRecord = primusTip.getTipRecords(TipRecipient({idSource: "tiktok", id: "user123"}))[0];
 
-        TipWithdrawInfo memory recipient = TipWithdrawInfo("tiktok", "user123", tipRecord.timestamp);
+        TipWithdrawInfo memory recipient =
+            TipWithdrawInfo({idSource: "tiktok", id: "user123", tipTimestamp: tipRecord.timestamp});
         recipients[0] = recipient;
         vm.startPrank(tipper);
         primusTip.tipperWithdraw(recipients);
         vm.stopPrank();
 
         assertEq(IERC20(erc20Token).balanceOf(tipper), initialBalance + 100, "Balance not updated correctly");
-        assertEq(primusTip.getTipRecords(TipRecipient("github", "user123")).length, 0, "Records not cleared");
+        assertEq(
+            primusTip.getTipRecords(TipRecipient({idSource: "github", id: "user123"})).length, 0, "Records not cleared"
+        );
     }
 
     function test_TipperWithdraw_MultipleRecords() public {
         for (uint256 i = 0; i < 5; i++) {
             string memory idStr = string(abi.encodePacked("user", TestUtils.uintToString(i)));
-            TipRecipientInfo memory recipient = TipRecipientInfo("github", idStr, 100, new uint256[](0));
+            TipRecipientInfo memory recipient =
+                TipRecipientInfo({idSource: "github", id: idStr, amount: 100, nftIds: new uint256[](0)});
             vm.startPrank(tipper);
             IERC20(erc20Token).approve(address(primusTip), recipient.amount);
             uint256 tipperBalance = IERC20(erc20Token).balanceOf(tipper);
             console.log("tipperBalance:%d", tipperBalance);
-            primusTip.tip(TipToken(0, erc20Token), recipient);
+            primusTip.tip(TipToken({tokenType: 0, tokenAddress: erc20Token}), recipient);
             vm.stopPrank();
         }
 
@@ -250,13 +250,18 @@ contract PrimusTipTest is Test {
 
         //vm.prank(tipper);
         TipWithdrawInfo[] memory recipients = new TipWithdrawInfo[](5);
-        TipRecord memory tipRecord = primusTip.getTipRecords(TipRecipient("github", "user0"))[0];
+        TipRecord memory tipRecord = primusTip.getTipRecords(TipRecipient({idSource: "github", id: "user0"}))[0];
 
-        TipWithdrawInfo memory recipient1 = TipWithdrawInfo("github", "user0", tipRecord.timestamp);
-        TipWithdrawInfo memory recipient2 = TipWithdrawInfo("github", "user1", tipRecord.timestamp);
-        TipWithdrawInfo memory recipient3 = TipWithdrawInfo("github", "user2", tipRecord.timestamp);
-        TipWithdrawInfo memory recipient4 = TipWithdrawInfo("github", "user3", tipRecord.timestamp);
-        TipWithdrawInfo memory recipient5 = TipWithdrawInfo("github", "user4", tipRecord.timestamp);
+        TipWithdrawInfo memory recipient1 =
+            TipWithdrawInfo({idSource: "github", id: "user0", tipTimestamp: tipRecord.timestamp});
+        TipWithdrawInfo memory recipient2 =
+            TipWithdrawInfo({idSource: "github", id: "user1", tipTimestamp: tipRecord.timestamp});
+        TipWithdrawInfo memory recipient3 =
+            TipWithdrawInfo({idSource: "github", id: "user2", tipTimestamp: tipRecord.timestamp});
+        TipWithdrawInfo memory recipient4 =
+            TipWithdrawInfo({idSource: "github", id: "user3", tipTimestamp: tipRecord.timestamp});
+        TipWithdrawInfo memory recipient5 =
+            TipWithdrawInfo({idSource: "github", id: "user4", tipTimestamp: tipRecord.timestamp});
         recipients[0] = recipient1;
         recipients[1] = recipient2;
         recipients[2] = recipient3;
@@ -272,19 +277,20 @@ contract PrimusTipTest is Test {
 
         for (uint256 i = 0; i < 5; i++) {
             string memory idStr = string(abi.encodePacked("user", TestUtils.uintToString(i)));
-            assertEq(primusTip.getTipRecords(TipRecipient("github", idStr)).length, 0);
+            assertEq(primusTip.getTipRecords(TipRecipient({idSource: "github", id: idStr})).length, 0);
         }
     }
 
     function test_TipperWithdraw_MultipleRecords_2() public {
         for (uint256 i = 0; i < 25; i++) {
             string memory idStr = string(abi.encodePacked("user", TestUtils.uintToString(i)));
-            TipRecipientInfo memory recipient = TipRecipientInfo("github", idStr, 1, new uint256[](0));
+            TipRecipientInfo memory recipient =
+                TipRecipientInfo({idSource: "github", id: idStr, amount: 1, nftIds: new uint256[](0)});
             vm.startPrank(tipper);
             IERC20(erc20Token).approve(address(primusTip), recipient.amount);
             uint256 tipperBalance = IERC20(erc20Token).balanceOf(tipper);
             console.log("tipperBalance:%d", tipperBalance);
-            primusTip.tip(TipToken(0, erc20Token), recipient);
+            primusTip.tip(TipToken({tokenType: 0, tokenAddress: erc20Token}), recipient);
             vm.stopPrank();
         }
 
@@ -293,12 +299,13 @@ contract PrimusTipTest is Test {
         vm.warp(block.timestamp + primusTip.withdrawDelay() - 1 days);
         for (uint256 i = 25; i < 30; i++) {
             string memory idStr = string(abi.encodePacked("user", TestUtils.uintToString(i)));
-            TipRecipientInfo memory recipient = TipRecipientInfo("github", idStr, 1, new uint256[](0));
+            TipRecipientInfo memory recipient =
+                TipRecipientInfo({idSource: "github", id: idStr, amount: 1, nftIds: new uint256[](0)});
             vm.startPrank(tipper);
             IERC20(erc20Token).approve(address(primusTip), recipient.amount);
             uint256 tipperBalance = IERC20(erc20Token).balanceOf(tipper);
             console.log("tipperBalance:%d", tipperBalance);
-            primusTip.tip(TipToken(0, erc20Token), recipient);
+            primusTip.tip(TipToken({tokenType: 0, tokenAddress: erc20Token}), recipient);
             vm.stopPrank();
         }
         vm.stopPrank();
@@ -307,13 +314,18 @@ contract PrimusTipTest is Test {
 
         // vm.prank(tipper);
         TipWithdrawInfo[] memory recipients = new TipWithdrawInfo[](5);
-        TipRecord memory tipRecord = primusTip.getTipRecords(TipRecipient("github", "user25"))[0];
+        TipRecord memory tipRecord = primusTip.getTipRecords(TipRecipient({idSource: "github", id: "user25"}))[0];
 
-        TipWithdrawInfo memory recipient1 = TipWithdrawInfo("github", "user25", tipRecord.timestamp);
-        TipWithdrawInfo memory recipient2 = TipWithdrawInfo("github", "user26", tipRecord.timestamp);
-        TipWithdrawInfo memory recipient3 = TipWithdrawInfo("github", "user27", tipRecord.timestamp);
-        TipWithdrawInfo memory recipient4 = TipWithdrawInfo("github", "user28", tipRecord.timestamp);
-        TipWithdrawInfo memory recipient5 = TipWithdrawInfo("github", "user29", tipRecord.timestamp);
+        TipWithdrawInfo memory recipient1 =
+            TipWithdrawInfo({idSource: "github", id: "user25", tipTimestamp: tipRecord.timestamp});
+        TipWithdrawInfo memory recipient2 =
+            TipWithdrawInfo({idSource: "github", id: "user26", tipTimestamp: tipRecord.timestamp});
+        TipWithdrawInfo memory recipient3 =
+            TipWithdrawInfo({idSource: "github", id: "user27", tipTimestamp: tipRecord.timestamp});
+        TipWithdrawInfo memory recipient4 =
+            TipWithdrawInfo({idSource: "github", id: "user28", tipTimestamp: tipRecord.timestamp});
+        TipWithdrawInfo memory recipient5 =
+            TipWithdrawInfo({idSource: "github", id: "user29", tipTimestamp: tipRecord.timestamp});
         recipients[0] = recipient1;
         recipients[1] = recipient2;
         recipients[2] = recipient3;
@@ -329,11 +341,13 @@ contract PrimusTipTest is Test {
     }
 
     function test_TipperWithdraw_PartiallyExpired() public {
-        TipToken memory token = TipToken(0, erc20Token);
+        TipToken memory token = TipToken({tokenType: 0, tokenAddress: erc20Token});
 
-        TipRecipientInfo memory expiredRecipient = TipRecipientInfo("tiktok", "expired_user", 200, new uint256[](0));
+        TipRecipientInfo memory expiredRecipient =
+            TipRecipientInfo({idSource: "tiktok", id: "expired_user", amount: 200, nftIds: new uint256[](0)});
 
-        TipRecipientInfo memory validRecipient = TipRecipientInfo("tiktok", "valid_user", 300, new uint256[](0));
+        TipRecipientInfo memory validRecipient =
+            TipRecipientInfo({idSource: "tiktok", id: "valid_user", amount: 300, nftIds: new uint256[](0)});
 
         vm.startPrank(tipper);
         IERC20(erc20Token).approve(address(primusTip), expiredRecipient.amount + validRecipient.amount);
@@ -343,15 +357,24 @@ contract PrimusTipTest is Test {
         primusTip.tip(token, validRecipient);
         vm.stopPrank();
 
-        assertEq(primusTip.getTipRecords(TipRecipient("tiktok", "expired_user")).length, 1, "Expired record not exist");
-        assertEq(primusTip.getTipRecords(TipRecipient("tiktok", "valid_user")).length, 1, "Valid record not exist");
+        assertEq(
+            primusTip.getTipRecords(TipRecipient({idSource: "tiktok", id: "expired_user"})).length,
+            1,
+            "Expired record not exist"
+        );
+        assertEq(
+            primusTip.getTipRecords(TipRecipient({idSource: "tiktok", id: "valid_user"})).length,
+            1,
+            "Valid record not exist"
+        );
         vm.warp(block.timestamp + 2 days);
 
         uint256 initialBalance = IERC20(erc20Token).balanceOf(tipper);
 
         TipWithdrawInfo[] memory recipients = new TipWithdrawInfo[](1);
-        TipRecord memory tipRecord = primusTip.getTipRecords(TipRecipient("tiktok", "expired_user"))[0];
-        TipWithdrawInfo memory recipient = TipWithdrawInfo("tiktok", "expired_user", tipRecord.timestamp);
+        TipRecord memory tipRecord = primusTip.getTipRecords(TipRecipient({idSource: "tiktok", id: "expired_user"}))[0];
+        TipWithdrawInfo memory recipient =
+            TipWithdrawInfo({idSource: "tiktok", id: "expired_user", tipTimestamp: tipRecord.timestamp});
         recipients[0] = recipient;
         vm.prank(tipper);
         primusTip.tipperWithdraw(recipients);
@@ -359,11 +382,15 @@ contract PrimusTipTest is Test {
         assertEq(IERC20(erc20Token).balanceOf(tipper), initialBalance + 200, "Expired amount not withdrawn");
 
         assertEq(
-            primusTip.getTipRecords(TipRecipient("tiktok", "expired_user")).length, 0, "Expired record not removed"
+            primusTip.getTipRecords(TipRecipient({idSource: "tiktok", id: "expired_user"})).length,
+            0,
+            "Expired record not removed"
         );
 
         assertEq(
-            primusTip.getTipRecords(TipRecipient("tiktok", "valid_user")).length, 1, "Valid record incorrectly removed"
+            primusTip.getTipRecords(TipRecipient({idSource: "tiktok", id: "valid_user"})).length,
+            1,
+            "Valid record incorrectly removed"
         );
     }
 
@@ -386,7 +413,7 @@ contract PrimusTipTest is Test {
     }
 
     function _tipForSources(string[] memory sources, uint256 amount) private {
-        TipToken memory token = TipToken(1, address(0));
+        TipToken memory token = TipToken({tokenType: 1, tokenAddress: address(0)});
 
         for (uint256 i = 0; i < sources.length; i++) {
             string memory userName;
@@ -396,7 +423,8 @@ contract PrimusTipTest is Test {
                 userName = "wenjun_yuan1";
             }
 
-            TipRecipientInfo memory recipient = TipRecipientInfo(sources[i], userName, amount, new uint256[](0));
+            TipRecipientInfo memory recipient =
+                TipRecipientInfo({idSource: sources[i], id: userName, amount: amount, nftIds: new uint256[](0)});
             vm.deal(tipper, amount);
             vm.prank(tipper);
             primusTip.tip{value: amount}(token, recipient);
@@ -405,29 +433,34 @@ contract PrimusTipTest is Test {
 
     // ========== tipBatch  ==========
     function test_TipBatch_Success() public {
-        TipToken memory token = TipToken(0, erc20Token);
+        TipToken memory token = TipToken({tokenType: 0, tokenAddress: erc20Token});
         TipRecipientInfo[] memory recipients = new TipRecipientInfo[](2);
-        recipients[0] = TipRecipientInfo("github", "user1", 50, new uint256[](0));
-        recipients[1] = TipRecipientInfo("github", "user2", 50, new uint256[](0));
+        recipients[0] = TipRecipientInfo({idSource: "github", id: "user1", amount: 50, nftIds: new uint256[](0)});
+        recipients[1] = TipRecipientInfo({idSource: "github", id: "user2", amount: 50, nftIds: new uint256[](0)});
 
         vm.startPrank(tipper);
         IERC20(erc20Token).approve(address(primusTip), 100);
         primusTip.tipBatch(token, recipients);
         vm.stopPrank();
 
-        assertEq(primusTip.getTipRecords(TipRecipient("github", "user1")).length, 1, "User1 record not found");
-        assertEq(primusTip.getTipRecords(TipRecipient("github", "user2")).length, 1, "User2 record not found");
+        assertEq(
+            primusTip.getTipRecords(TipRecipient({idSource: "github", id: "user1"})).length, 1, "User1 record not found"
+        );
+        assertEq(
+            primusTip.getTipRecords(TipRecipient({idSource: "github", id: "user2"})).length, 1, "User2 record not found"
+        );
     }
 
     function test_TipBatch_100_Success() public {
         for (uint256 i = 0; i < 100; i++) {
             string memory idStr = string(abi.encodePacked("user", TestUtils.uintToString(i)));
-            TipRecipientInfo memory recipient = TipRecipientInfo("github", idStr, 1, new uint256[](0));
+            TipRecipientInfo memory recipient =
+                TipRecipientInfo({idSource: "github", id: idStr, amount: 1, nftIds: new uint256[](0)});
             vm.startPrank(tipper);
             IERC20(erc20Token).approve(address(primusTip), recipient.amount);
             uint256 tipperBalance = IERC20(erc20Token).balanceOf(tipper);
             console.log("tipperBalance:%d", tipperBalance);
-            primusTip.tip(TipToken(0, erc20Token), recipient);
+            primusTip.tip(TipToken({tokenType: 0, tokenAddress: erc20Token}), recipient);
             vm.stopPrank();
         }
     }
@@ -445,8 +478,15 @@ contract PrimusTipTest is Test {
         primusTip.tip(token, recipientInfo);
         vm.stopPrank();
 
-        console.log("test_TipNFT record=", primusTip.getTipRecords(TipRecipient("tiktok", "user123"))[0].nftIds[0]);
-        assertEq(primusTip.getTipRecords(TipRecipient("tiktok", "user123"))[0].nftIds[0], 0, "User record not found");
+        console.log(
+            "test_TipNFT record=",
+            primusTip.getTipRecords(TipRecipient({idSource: "tiktok", id: "user123"}))[0].nftIds[0]
+        );
+        assertEq(
+            primusTip.getTipRecords(TipRecipient({idSource: "tiktok", id: "user123"}))[0].nftIds[0],
+            0,
+            "User record not found"
+        );
 
         console.log("test_TipNFT owner=", IERC721(nftTokenAddr).ownerOf(0));
         assertEq(IERC721(nftTokenAddr).ownerOf(0), address(primusTip), "token owner incorrect");
@@ -469,8 +509,15 @@ contract PrimusTipTest is Test {
 
         for (uint256 i = 0; i < 5; i++) {
             string memory idStr = string(abi.encodePacked("user", TestUtils.uintToString(i)));
-            console.log("test_TipNFT record=", primusTip.getTipRecords(TipRecipient("tiktok", idStr))[0].nftIds[0]);
-            assertEq(primusTip.getTipRecords(TipRecipient("tiktok", idStr))[0].nftIds[0], i, "User record not found");
+            console.log(
+                "test_TipNFT record=",
+                primusTip.getTipRecords(TipRecipient({idSource: "tiktok", id: idStr}))[0].nftIds[0]
+            );
+            assertEq(
+                primusTip.getTipRecords(TipRecipient({idSource: "tiktok", id: idStr}))[0].nftIds[0],
+                i,
+                "User record not found"
+            );
 
             console.log("test_TipNFT owner=", IERC721(nftTokenAddr).ownerOf(i));
             assertEq(IERC721(nftTokenAddr).ownerOf(i), address(primusTip), "token owner incorrect");
@@ -478,9 +525,9 @@ contract PrimusTipTest is Test {
     }
 
     function test_TipBatch_Failure_ZeroAmount() public {
-        TipToken memory token = TipToken(0, erc20Token);
+        TipToken memory token = TipToken({tokenType: 0, tokenAddress: erc20Token});
         TipRecipientInfo[] memory recipients = new TipRecipientInfo[](1);
-        recipients[0] = TipRecipientInfo("github", "user1", 0, new uint256[](0));
+        recipients[0] = TipRecipientInfo({idSource: "github", id: "user1", amount: 0, nftIds: new uint256[](0)});
 
         vm.startPrank(tipper);
         vm.expectRevert("amount is zero");

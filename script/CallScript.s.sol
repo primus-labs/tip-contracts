@@ -4,13 +4,12 @@ pragma solidity ^0.8.20;
 import {Script} from "forge-std/Script.sol";
 import {console} from "forge-std/console.sol";
 import {PrimusTip} from "../src/PrimusTip.sol";
-import {TipWithdrawInfo, TipRecord, TipRecipient, TipToken, TipRecipientInfo} from "../src/types/Common.sol";
+
 import {
     Attestation,
     AttNetworkRequest,
     AttNetworkResponseResolve,
-    Attestor,
-    IPrimusZKTLS
+    Attestor
 } from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
 
 contract CallScript is Script {
@@ -100,18 +99,18 @@ contract CallScript is Script {
 
         // console.log("fee: ", primusTip.claimFee());
 
-        // TipRecord[] memory tipRecord = primusTip.getTipRecordsPaginated(TipRecipient("x", "avzcrypto"), 0, 20);
+        // TipRecord[] memory tipRecord = primusTip.getTipRecordsPaginated(TipRecipient({idSource: "x", id: "avzcrypto"}), 0, 20);
         // console.log("tipRecord length=", tipRecord.length);
         // console.log("tipRecord[0].timestamp=", tipRecord[0].timestamp);
         // console.log("tipRecord[0].amount=", tipRecord[0].amount);
 
-        // uint256 recordLen = primusTip.getTipRecordsLength(TipRecipient("x", "avzcrypto"));
+        // uint256 recordLen = primusTip.getTipRecordsLength(TipRecipient({idSource: "x", id: "avzcrypto"}));
         // console.log("recordLen=", recordLen);
 
-        // uint256 amount = primusTip.getTipRecordsNativeAmount(TipRecipient("x", "avzcrypto"));
+        // uint256 amount = primusTip.getTipRecordsNativeAmount(TipRecipient({idSource: "x", id: "avzcrypto"}));
         // console.log("amount=", amount);
 
-        // (address[] memory token, uint256[] memory balance) = primusTip.getTipTokenStats(TipRecipient("x", "avzcrypto"));
+        // (address[] memory token, uint256[] memory balance) = primusTip.getTipTokenStats(TipRecipient({idSource: "x", id: "avzcrypto"}));
         // for (uint256 i = 0; i < token.length; i++) {
         //     console.log("address=", token[i]);
         //     console.log("balance=", balance[i]);
@@ -124,7 +123,7 @@ contract CallScript is Script {
         // primusTip.claimBySource{value: 0.0001 ether}(idSource, attestation);
 
         // TipWithdrawInfo[] memory recipients = new TipWithdrawInfo[](1);
-        // TipWithdrawInfo memory recipient = TipWithdrawInfo("x", "wenjun_yuan1", 1744282624);
+        // TipWithdrawInfo memory recipient = TipWithdrawInfo({idSource: "x", id: "wenjun_yuan1", tipTimestamp: 1744282624});
         // recipients[0] = recipient;
         // primusTip.tipperWithdraw(recipients);
 
@@ -205,9 +204,9 @@ contract CallScript is Script {
     }
 
     function fromHexChar(uint8 c) internal pure returns (uint8) {
-        if (bytes1(c) >= "0" && bytes1(c) <= "9") return c - uint8(bytes1("0"));
-        if (bytes1(c) >= "a" && bytes1(c) <= "f") return 10 + c - uint8(bytes1("a"));
-        if (bytes1(c) >= "A" && bytes1(c) <= "F") return 10 + c - uint8(bytes1("A"));
+        if (c >= 48 && c <= 57) return c - 48;
+        if (c >= 97 && c <= 102) return 10 + c - 97;
+        if (c >= 65 && c <= 70) return 10 + c - 65;
         revert("Invalid hex character");
     }
 }

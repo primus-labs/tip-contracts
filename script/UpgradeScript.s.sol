@@ -11,12 +11,12 @@ contract UpgradeScript is Script {
     bytes32 internal constant IMPLEMENTATION_SLOT = bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1);
 
     function run() external {
-        address proxyAddr = vm.envAddress("TIP_PROXY_ADDRESS");
+        address proxyAddr = _proxyAddress();
         require(proxyAddr.code.length > 0, "TIP_PROXY_ADDRESS has no code");
         address proxyAdminAddr = address(uint160(uint256(vm.load(proxyAddr, ADMIN_SLOT))));
         require(proxyAdminAddr.code.length > 0, "ProxyAdmin has no code");
         ProxyAdmin proxyAdmin = ProxyAdmin(proxyAdminAddr);
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        uint256 deployerPrivateKey = _privateKey();
         require(proxyAdmin.owner() == vm.addr(deployerPrivateKey), "PRIVATE_KEY is not ProxyAdmin owner");
 
         console.log("Chain ID:", block.chainid);
@@ -33,5 +33,13 @@ contract UpgradeScript is Script {
             "Implementation was not updated"
         );
         console.log("Upgraded implementation:", address(newLogic));
+    }
+
+    function _proxyAddress() internal virtual returns (address) {
+        return vm.envAddress("TIP_PROXY_ADDRESS");
+    }
+
+    function _privateKey() internal virtual returns (uint256) {
+        return vm.envUint("PRIVATE_KEY");
     }
 }

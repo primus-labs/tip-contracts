@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
+import {EncryptedTipRecipientInfo} from "src/types/Common.sol";
+import {Attestation} from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Currency} from "src/utils/Currency.sol";
+import {PrimusSpf} from "src/PrimusSpf.sol";
 
-import "forge-std/Test.sol";
-import "forge-std/console.sol";
-import "src/PrimusFHETip.sol";
-import "src/types/Common.sol";
-import "src/utils/StringUtils.sol";
-import "./TestUtils.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {Test} from "forge-std/Test.sol";
+import {console} from "forge-std/console.sol";
+import {PrimusFHETip} from "src/PrimusFHETip.sol";
+import {TipToken, TipRecipient, ERC20_TYPE, NATIVE_TYPE} from "src/types/Common.sol";
+import {StringUtils} from "src/utils/StringUtils.sol";
+import {TestUtils} from "./TestUtils.sol";
 
-import {
-    Attestation as PrimusAttestation,
-    AttNetworkRequest,
-    AttNetworkResponseResolve,
-    Attestor,
-    IPrimusZKTLS
-} from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
+import {IPrimusZKTLS} from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
 
 import {Spf} from "@sunscreen/contracts/Spf.sol";
 import {TfheThresholdDecryption} from "@sunscreen/contracts/TfheThresholdDecryption.sol";
@@ -65,7 +65,7 @@ contract SpfMock {
         Value memory decrypted = _decryptedValue[identifier];
 
         require(!decrypted.seenBefore, "We are trying to update a value we have seen before");
-        _decryptedValue[identifier] = Value(true, value);
+        _decryptedValue[identifier] = Value({seenBefore: true, value: value});
     }
 
     /**
@@ -213,7 +213,7 @@ contract SpfMock {
         uint256 updatedBalanceValue = balanceValue - updatedAmountValue;
 
         (Spf.SpfParameter memory updatedAmount, Spf.SpfParameter memory updatedBalance) =
-            PrimusSpf.withdraw(uint64(amountValue), balance);
+            PrimusSpf.withdraw(SafeCast.toUint64(amountValue), balance);
 
         updateDecryptedValue(updatedAmount, updatedAmountValue);
         updateDecryptedValue(updatedBalance, updatedBalanceValue);
@@ -272,8 +272,8 @@ contract PrimusFHETipTest is Test {
     using Currency for uint256;
     using StringUtils for string;
 
-    PrimusFHETip public primusFHETip;
-    PrimusZKTLSMock public primusZKTLS;
+    PrimusFHETip public primusFheTip;
+    PrimusZKTLSMock public primusVerifier;
     SpfMock public spfMock;
 
     address public owner = address(1);
@@ -283,19 +283,19 @@ contract PrimusFHETipTest is Test {
     address public recipient = TestUtils.stringToAddress("0x7ab44DE0156925fe0c24482a2cDe48C465e47573");
     address public erc20Token = address(4);
     address public nftTokenAddr = address(5);
-    address public threshold_decryption_service;
+    address public thresholdDecryptionService;
 
     uint256 constant STARTING_NATIVE_BALANCE = 10 ether;
     uint256 constant STARTING_ERC20_BALANCE = 1000;
 
     function setUp() public {
         vm.startPrank(owner);
-        threshold_decryption_service = (new TfheThresholdDecryption()).THRESHOLD_DECRYPTION_SERVICE();
-        primusZKTLS = new PrimusZKTLSMock();
-        primusFHETip = new PrimusFHETip();
+        thresholdDecryptionService = (new TfheThresholdDecryption()).THRESHOLD_DECRYPTION_SERVICE();
+        primusVerifier = new PrimusZKTLSMock();
+        primusFheTip = new PrimusFHETip();
         spfMock = new SpfMock();
-        console.log("primusFHETip=", address(primusFHETip));
-        primusFHETip.initialize(owner, primusZKTLS, feeRecipient, 0, -1);
+        console.log("primusFheTip=", address(primusFheTip));
+        primusFheTip.initialize(owner, primusVerifier, feeRecipient, 0, -1);
 
         string[] memory sourceNames = new string[](3);
         sourceNames[0] = "tiktok";
@@ -312,7 +312,7 @@ contract PrimusFHETipTest is Test {
         jsonPaths[1] = "$.screen_name";
         jsonPaths[2] = "$.id";
 
-        primusFHETip.addBatchIdSource(sourceNames, urls, jsonPaths);
+        primusFheTip.addBatchIdSource(sourceNames, urls, jsonPaths);
 
         ERC20Mock token = new ERC20Mock(18);
         erc20Token = address(token);
@@ -320,7 +320,7 @@ contract PrimusFHETipTest is Test {
 
         vm.deal(tipper, STARTING_NATIVE_BALANCE);
         vm.deal(recipient, STARTING_NATIVE_BALANCE);
-        vm.deal(threshold_decryption_service, STARTING_NATIVE_BALANCE);
+        vm.deal(thresholdDecryptionService, STARTING_NATIVE_BALANCE);
 
         vm.stopPrank();
     }
@@ -347,12 +347,12 @@ contract PrimusFHETipTest is Test {
         uint256 amount = 1000;
 
         vm.startPrank(tipper);
-        IERC20(erc20Token).approve(address(primusFHETip), amount);
-        primusFHETip.deposit(token, amount);
+        IERC20(erc20Token).approve(address(primusFheTip), amount);
+        primusFheTip.deposit(token, amount);
         vm.stopPrank();
 
         assertEq(IERC20(erc20Token).balanceOf(tipper), 0);
-        assertEq(IERC20(erc20Token).balanceOf(address(primusFHETip)), amount);
+        assertEq(IERC20(erc20Token).balanceOf(address(primusFheTip)), amount);
     }
 
     function test_TipERC20() public {
@@ -362,7 +362,7 @@ contract PrimusFHETipTest is Test {
             EncryptedTipRecipientInfo({idSource: "tiktok", id: "user123", amountId: mockEncryption(0)});
 
         vm.startPrank(tipper);
-        primusFHETip.tip(token, recipientInfo);
+        primusFheTip.tip(token, recipientInfo);
         vm.stopPrank();
     }
 
@@ -375,12 +375,12 @@ contract PrimusFHETipTest is Test {
             EncryptedTipRecipientInfo({idSource: "tiktok", id: "user123", amountId: mockEncryption(0)});
 
         vm.startPrank(tipper);
-        IERC20(erc20Token).approve(address(primusFHETip), amount);
-        primusFHETip.depositAndTip(token, recipientInfo, amount);
+        IERC20(erc20Token).approve(address(primusFheTip), amount);
+        primusFheTip.depositAndTip(token, recipientInfo, amount);
         vm.stopPrank();
 
         assertEq(IERC20(erc20Token).balanceOf(tipper), STARTING_ERC20_BALANCE - amount);
-        assertEq(IERC20(erc20Token).balanceOf(address(primusFHETip)), amount);
+        assertEq(IERC20(erc20Token).balanceOf(address(primusFheTip)), amount);
     }
 
     function test_DepositNative() public {
@@ -388,11 +388,11 @@ contract PrimusFHETipTest is Test {
         uint256 amount = 1 ether;
 
         vm.startPrank(tipper);
-        primusFHETip.deposit{value: amount}(token, amount);
+        primusFheTip.deposit{value: amount}(token, amount);
         vm.stopPrank();
 
         assertEq(tipper.balance, STARTING_NATIVE_BALANCE - amount);
-        assertEq(address(primusFHETip).balance, amount);
+        assertEq(address(primusFheTip).balance, amount);
     }
 
     function test_TipNative() public {
@@ -402,7 +402,7 @@ contract PrimusFHETipTest is Test {
             EncryptedTipRecipientInfo({idSource: "tiktok", id: "user123", amountId: mockEncryption(0)});
 
         vm.startPrank(tipper);
-        primusFHETip.tip(token, recipientInfo);
+        primusFheTip.tip(token, recipientInfo);
         vm.stopPrank();
     }
 
@@ -415,11 +415,11 @@ contract PrimusFHETipTest is Test {
             EncryptedTipRecipientInfo({idSource: "tiktok", id: "user123", amountId: mockEncryption(0)});
 
         vm.startPrank(tipper);
-        primusFHETip.depositAndTip{value: amount}(token, recipientInfo, amount);
+        primusFheTip.depositAndTip{value: amount}(token, recipientInfo, amount);
         vm.stopPrank();
 
         assertEq(tipper.balance, STARTING_NATIVE_BALANCE - amount);
-        assertEq(address(primusFHETip).balance, amount);
+        assertEq(address(primusFheTip).balance, amount);
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -463,29 +463,29 @@ contract PrimusFHETipTest is Test {
             EncryptedTipRecipientInfo({idSource: idSource, id: id, amountId: amountId});
 
         vm.startPrank(tipper);
-        IERC20(erc20Token).approve(address(primusFHETip), depositAmount);
-        primusFHETip.deposit{value: depositMsgValue}(token, depositAmount);
-        primusFHETip.tip(token, recipientInfo);
+        IERC20(erc20Token).approve(address(primusFheTip), depositAmount);
+        primusFheTip.deposit{value: depositMsgValue}(token, depositAmount);
+        primusFheTip.tip(token, recipientInfo);
         vm.stopPrank();
 
         // Simulate the tip
         spfMock.updateTip(amountId, normalizedDepositAmount, Spf.createTrivialZeroCiphertextParameter(64));
-        Spf.SpfParameter memory tip = primusFHETip.getTipRecords(TipRecipient({idSource: idSource, id: id}))[0].amountId;
+        Spf.SpfParameter memory tip = primusFheTip.getTipRecords(TipRecipient({idSource: idSource, id: id}))[0].amountId;
         uint256 decryptedTipAmount = spfMock.decrypt(tip);
 
         assertEq(decryptedTipAmount, expectedTransferAmount, "Tip amount mismatch");
 
         // Check that the user does have things to claim
         vm.startPrank(recipient);
-        primusFHETip.claimBySource(idSource, attestation);
+        primusFheTip.claimBySource(idSource, attestation);
         vm.stopPrank();
 
         // Simulate claim
         spfMock.addToBalance(tip, Spf.createTrivialZeroCiphertextParameter(64));
 
         Spf.SpfParameter memory encryptedBalance = token.tokenType == ERC20_TYPE
-            ? primusFHETip.erc20ClaimedBalanceOf(token.tokenAddress, recipient)
-            : primusFHETip.nativeClaimedBalanceOf(recipient);
+            ? primusFheTip.erc20ClaimedBalanceOf(token.tokenAddress, recipient)
+            : primusFheTip.nativeClaimedBalanceOf(recipient);
 
         uint256 decryptedBalance = spfMock.decrypt(encryptedBalance);
         assertEq(expectedTransferAmount, decryptedBalance);
@@ -603,36 +603,37 @@ contract PrimusFHETipTest is Test {
             EncryptedTipRecipientInfo({idSource: idSource, id: id, amountId: amountId});
 
         vm.startPrank(tipper);
-        IERC20(erc20Token).approve(address(primusFHETip), depositAmount);
-        primusFHETip.deposit{value: depositMsgValue}(token, depositAmount);
-        primusFHETip.tip(token, recipientInfo);
+        IERC20(erc20Token).approve(address(primusFheTip), depositAmount);
+        primusFheTip.deposit{value: depositMsgValue}(token, depositAmount);
+        primusFheTip.tip(token, recipientInfo);
         vm.stopPrank();
 
         // Simulate the tip
         spfMock.updateTip(amountId, normalizedDepositAmount, Spf.createTrivialZeroCiphertextParameter(64));
-        Spf.SpfParameter memory tip = primusFHETip.getTipRecords(TipRecipient({idSource: idSource, id: id}))[0].amountId;
+        Spf.SpfParameter memory tip = primusFheTip.getTipRecords(TipRecipient({idSource: idSource, id: id}))[0].amountId;
 
         vm.startPrank(recipient);
-        primusFHETip.claimBySource(idSource, attestation);
+        primusFheTip.claimBySource(idSource, attestation);
         vm.stopPrank();
 
         spfMock.addToBalance(tip, Spf.createTrivialZeroCiphertextParameter(64));
 
         Spf.SpfParameter memory balance = token.tokenType == ERC20_TYPE
-            ? primusFHETip.erc20ClaimedBalanceOf(token.tokenAddress, recipient)
-            : primusFHETip.nativeClaimedBalanceOf(recipient);
+            ? primusFheTip.erc20ClaimedBalanceOf(token.tokenAddress, recipient)
+            : primusFheTip.nativeClaimedBalanceOf(recipient);
 
         vm.startPrank(recipient);
-        primusFHETip.withdraw{value: gas}(token, withdrawAmount);
+        primusFheTip.withdraw{value: gas}(token, withdrawAmount);
         vm.stopPrank();
 
-        (Spf.SpfParameter memory encryptedWithdrawAmount,) = spfMock.withdraw(uint64(normalizedWithdrawAmount), balance);
+        (Spf.SpfParameter memory encryptedWithdrawAmount,) =
+            spfMock.withdraw(SafeCast.toUint64(normalizedWithdrawAmount), balance);
 
         uint256 decryptedWithdrawAmount = spfMock.decrypt(encryptedWithdrawAmount);
         assertEq(decryptedWithdrawAmount, normalizedExpectedWithdrawAmount, "Withdraw amount mismatch");
 
-        vm.startPrank(threshold_decryption_service);
-        primusFHETip.withdrawTokensCallback(
+        vm.startPrank(thresholdDecryptionService);
+        primusFheTip.withdrawTokensCallback(
             Spf.passToDecryption(encryptedWithdrawAmount), normalizedExpectedWithdrawAmount
         );
         vm.stopPrank();
@@ -644,7 +645,7 @@ contract PrimusFHETipTest is Test {
                 "Tipper ERC20 balance incorrect"
             );
             assertEq(
-                IERC20(erc20Token).balanceOf(address(primusFHETip)),
+                IERC20(erc20Token).balanceOf(address(primusFheTip)),
                 depositAmount - expectedWithdrawAmount,
                 "Tip contract ERC20 balance incorrect"
             );
@@ -748,14 +749,14 @@ contract PrimusFHETipTest is Test {
         paths[1] = "$.user";
 
         vm.prank(owner);
-        primusFHETip.addBatchIdSource(names, urls, paths);
+        primusFheTip.addBatchIdSource(names, urls, paths);
 
-        (string memory url, string memory jsonpath) = primusFHETip.idSourceCache("linkedin");
+        (string memory url, string memory jsonpath) = primusFheTip.idSourceCache("linkedin");
 
         assertEq(url, "https://linkedin.com", "LinkedIn source not added");
         assertEq(paths[0], jsonpath);
 
-        (string memory url2, string memory jsonpath2) = primusFHETip.idSourceCache("facebook");
+        (string memory url2, string memory jsonpath2) = primusFheTip.idSourceCache("facebook");
         assertEq(url2, "https://facebook.com", "Facebook source not added");
         assertEq(paths[1], jsonpath2);
     }
@@ -766,6 +767,6 @@ contract PrimusFHETipTest is Test {
 
         vm.prank(owner);
         vm.expectRevert("length not match");
-        primusFHETip.addBatchIdSource(names, urls, new string[](2));
+        primusFheTip.addBatchIdSource(names, urls, new string[](2));
     }
 }

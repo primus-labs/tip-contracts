@@ -34,7 +34,8 @@ contract PrimusTipNativePaymentsTest is PrimusTipTest {
         vm.deal(sender, 3 ether);
         vm.prank(sender);
         primusTip.tip{value: 1 ether}(
-            TipToken(1, address(0)), TipRecipientInfo("x", "wenjun_yuan1", 1 ether, new uint256[](0))
+            TipToken({tokenType: 1, tokenAddress: address(0)}),
+            TipRecipientInfo({idSource: "x", id: "wenjun_yuan1", amount: 1 ether, nftIds: new uint256[](0)})
         );
     }
 
@@ -54,7 +55,7 @@ contract PrimusTipNativePaymentsTest is PrimusTipTest {
         assertEq(receiver.received(), 1.1 ether);
         assertEq(address(receiver).balance, 1.1 ether);
         assertEq(feeRecipient.balance, 0.1 ether);
-        assertEq(primusTip.getTipRecords(TipRecipient("x", "wenjun_yuan1")).length, 0);
+        assertEq(primusTip.getTipRecords(TipRecipient({idSource: "x", id: "wenjun_yuan1"})).length, 0);
     }
 
     function test_NativeMultiSourceClaimAndRefundToSmartAccount() public {
@@ -68,7 +69,7 @@ contract PrimusTipNativePaymentsTest is PrimusTipTest {
         vm.prank(address(receiver));
         primusTip.claimByMultiSource{value: 0.1 ether}(sources, proofs);
         assertEq(receiver.received(), 1.1 ether);
-        assertEq(primusTip.getTipRecords(TipRecipient("x", "wenjun_yuan1")).length, 0);
+        assertEq(primusTip.getTipRecords(TipRecipient({idSource: "x", id: "wenjun_yuan1"})).length, 0);
     }
 
     function test_NativeRejectedClaimRestoresRecordsAndBalance() public {
@@ -79,7 +80,7 @@ contract PrimusTipNativePaymentsTest is PrimusTipTest {
         primusTip.claimBySource("x", _proof(address(receiver)));
         assertEq(address(primusTip).balance, 1 ether);
         assertEq(address(receiver).balance, 0);
-        assertEq(primusTip.getTipRecords(TipRecipient("x", "wenjun_yuan1")).length, 1);
+        assertEq(primusTip.getTipRecords(TipRecipient({idSource: "x", id: "wenjun_yuan1"})).length, 1);
     }
 
     function test_NativeRejectedRefundRollsBackSuccessfulPayout() public {
@@ -94,7 +95,7 @@ contract PrimusTipNativePaymentsTest is PrimusTipTest {
         assertEq(recipientAddr.balance, beforeBalance);
         assertEq(address(sender).balance, 0.1 ether);
         assertEq(address(primusTip).balance, 1 ether);
-        assertEq(primusTip.getTipRecords(TipRecipient("x", "wenjun_yuan1")).length, 1);
+        assertEq(primusTip.getTipRecords(TipRecipient({idSource: "x", id: "wenjun_yuan1"})).length, 1);
     }
 
     function test_NativeReceiverCannotReenterAnotherFundsEntry() public {
@@ -116,29 +117,30 @@ contract PrimusTipNativePaymentsTest is PrimusTipTest {
         vm.deal(address(sender), 3 ether);
         vm.prank(address(sender));
         primusTip.tip{value: 2 ether}(
-            TipToken(1, address(0)), TipRecipientInfo("x", "wenjun_yuan1", 1 ether, new uint256[](0))
+            TipToken({tokenType: 1, tokenAddress: address(0)}),
+            TipRecipientInfo({idSource: "x", id: "wenjun_yuan1", amount: 1 ether, nftIds: new uint256[](0)})
         );
         assertEq(sender.received(), 1 ether);
         TipRecipientInfo[] memory recipients = new TipRecipientInfo[](1);
-        recipients[0] = TipRecipientInfo("x", "wenjun_yuan1", 1 ether, new uint256[](0));
+        recipients[0] = TipRecipientInfo({idSource: "x", id: "wenjun_yuan1", amount: 1 ether, nftIds: new uint256[](0)});
         vm.prank(address(sender));
-        primusTip.tipBatch{value: 2 ether}(TipToken(1, address(0)), recipients);
+        primusTip.tipBatch{value: 2 ether}(TipToken({tokenType: 1, tokenAddress: address(0)}), recipients);
         assertEq(sender.received(), 2 ether);
         assertEq(address(primusTip).balance, 2 ether);
-        assertEq(primusTip.getTipRecords(TipRecipient("x", "wenjun_yuan1")).length, 2);
+        assertEq(primusTip.getTipRecords(TipRecipient({idSource: "x", id: "wenjun_yuan1"})).length, 2);
     }
 
     function test_NativeWithdrawalToSmartAccount() public {
         NativePaymentReceiver sender = new NativePaymentReceiver();
         _deposit(address(sender));
-        uint64 timestamp = primusTip.getTipRecords(TipRecipient("x", "wenjun_yuan1"))[0].timestamp;
+        uint64 timestamp = primusTip.getTipRecords(TipRecipient({idSource: "x", id: "wenjun_yuan1"}))[0].timestamp;
         vm.warp(block.timestamp + 30 days);
         TipWithdrawInfo[] memory withdrawals = new TipWithdrawInfo[](1);
-        withdrawals[0] = TipWithdrawInfo("x", "wenjun_yuan1", timestamp);
+        withdrawals[0] = TipWithdrawInfo({idSource: "x", id: "wenjun_yuan1", tipTimestamp: timestamp});
         vm.prank(address(sender));
         primusTip.tipperWithdraw(withdrawals);
         assertEq(sender.received(), 1 ether);
         assertEq(address(primusTip).balance, 0);
-        assertEq(primusTip.getTipRecords(TipRecipient("x", "wenjun_yuan1")).length, 0);
+        assertEq(primusTip.getTipRecords(TipRecipient({idSource: "x", id: "wenjun_yuan1"})).length, 0);
     }
 }

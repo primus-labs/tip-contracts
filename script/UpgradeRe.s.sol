@@ -3,14 +3,11 @@ pragma solidity ^0.8.20;
 
 import {Script} from "forge-std/Script.sol";
 import {PrimusRedEnvelope} from "../src/PrimusRedEnvelope.sol";
-import "forge-std/Test.sol";
+import {console} from "forge-std/Test.sol";
 
 // script/Upgrade.s.sol
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
-import {
-    TransparentUpgradeableProxy,
-    ITransparentUpgradeableProxy
-} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 contract UpgradeScript is Script {
     function run() external {

@@ -26,10 +26,20 @@ contract OwnerScriptsTest is Test {
             address(new TransparentUpgradeableProxy(address(new PrimusRedEnvelope()), vm.addr(ADMIN_KEY), init));
         targets[1] = address(uint160(uint256(vm.load(targets[0], ADMIN_SLOT))));
         targets[3] = address(uint160(uint256(vm.load(targets[2], ADMIN_SLOT))));
+        // Configure the script under test with deterministic test-only values.
+        // forge-lint: disable-next-line(unsafe-cheatcode)
         vm.setEnv("TIP_PROXY_ADDRESS", vm.toString(targets[0]));
+        // Configure the script under test with deterministic test-only values.
+        // forge-lint: disable-next-line(unsafe-cheatcode)
         vm.setEnv("RED_ENVELOPE_PROXY_ADDRESS", vm.toString(targets[2]));
+        // Configure the script under test with deterministic test-only values.
+        // forge-lint: disable-next-line(unsafe-cheatcode)
         vm.setEnv("NEW_OWNER", vm.toString(NEW_OWNER));
+        // Configure the script under test with deterministic test-only values.
+        // forge-lint: disable-next-line(unsafe-cheatcode)
         vm.setEnv("PRIVATE_KEY", vm.toString(BUSINESS_KEY));
+        // Configure the script under test with deterministic test-only values.
+        // forge-lint: disable-next-line(unsafe-cheatcode)
         vm.setEnv("PROXY_ADMIN_PRIVATE_KEY", vm.toString(ADMIN_KEY));
         transferScript = new TransferOwners();
     }
@@ -72,6 +82,8 @@ contract OwnerScriptsTest is Test {
     }
 
     function _wrongAdminKeyRejectedBeforeAnyTransfer() internal {
+        // Configure the script under test with deterministic test-only values.
+        // forge-lint: disable-next-line(unsafe-cheatcode)
         vm.setEnv("PROXY_ADMIN_PRIVATE_KEY", vm.toString(BUSINESS_KEY));
         vm.expectRevert("Signer is not current owner");
         transferScript.run();
@@ -79,6 +91,8 @@ contract OwnerScriptsTest is Test {
     }
 
     function _zeroOwnerRejected() internal {
+        // Configure the script under test with deterministic test-only values.
+        // forge-lint: disable-next-line(unsafe-cheatcode)
         vm.setEnv("NEW_OWNER", vm.toString(address(0)));
         vm.expectRevert("NEW_OWNER must not be zero");
         transferScript.run();
