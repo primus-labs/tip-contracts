@@ -1,4 +1,3 @@
-
 // script/Deploy.s.sol
 pragma solidity ^0.8.20;
 
@@ -15,7 +14,7 @@ contract DeployScript is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         PrimusTestNFT nftToken = new PrimusTestNFT(deployerAddress);
-        for (uint i = 0; i < 1; i++) {
+        for (uint256 i = 0; i < 1; i++) {
             nftToken.safeMint(address(0x810b7bacEfD5ba495bB688bbFD2501C904036AB7), "uri");
         }
         console.log("nftToken Address: ", address(nftToken));

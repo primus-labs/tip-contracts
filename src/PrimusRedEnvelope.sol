@@ -13,9 +13,29 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
     using StringUtils for string;
     using JsonParser for string;
 
-    event RESendEvent(bytes32 indexed id, address reSender, uint32 tokenType, address tokenAddress, uint256 amount, uint32 reType, uint32 number, uint64 timestamp, bytes checkParams);
-    event REClaimEvent(bytes32 indexed id, address recipient, string userId, uint256 claimAmount, uint32 reIndex, uint64 timestamp, address tokenAddress);
-    event RESWithdrawEvent(bytes32 indexed id, address reSender, uint256 amount, uint32 remainingNumber, uint64 timestamp);
+    event RESendEvent(
+        bytes32 indexed id,
+        address reSender,
+        uint32 tokenType,
+        address tokenAddress,
+        uint256 amount,
+        uint32 reType,
+        uint32 number,
+        uint64 timestamp,
+        bytes checkParams
+    );
+    event REClaimEvent(
+        bytes32 indexed id,
+        address recipient,
+        string userId,
+        uint256 claimAmount,
+        uint32 reIndex,
+        uint64 timestamp,
+        address tokenAddress
+    );
+    event RESWithdrawEvent(
+        bytes32 indexed id, address reSender, uint256 amount, uint32 remainingNumber, uint64 timestamp
+    );
 
     uint256 public idCounter;
     // IPrimusZKTLS contract
@@ -41,19 +61,16 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
      * @param feeRecipient_ The fee recipient address.
      * @param claimFee_ The claim fee.
      */
-    function initialize(
-        address owner,
-        IPrimusZKTLS primusZKTLS_,
-        address feeRecipient_,
-        uint256 claimFee_
-    ) public initializer {
+    function initialize(address owner, IPrimusZKTLS primusZKTLS_, address feeRecipient_, uint256 claimFee_)
+        public
+        initializer
+    {
         __Ownable_init(owner);
         primusZKTLS = primusZKTLS_;
         feeRecipient = feeRecipient_;
         claimFee = claimFee_;
         withdrawDelay = 30 days;
     }
-
 
     // ========== external functions ==========
     /**
@@ -90,7 +107,17 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
             checkParams: sendParam.checkParams
         });
         reRecords[reRecord.id] = reRecord;
-        emit RESendEvent(reRecord.id, reRecord.reSender, reRecord.tokenType, reRecord.tokenAddress, reRecord.amount, reRecord.reType, reRecord.number, reRecord.timestamp, reRecord.checkParams);
+        emit RESendEvent(
+            reRecord.id,
+            reRecord.reSender,
+            reRecord.tokenType,
+            reRecord.tokenAddress,
+            reRecord.amount,
+            reRecord.reType,
+            reRecord.number,
+            reRecord.timestamp,
+            reRecord.checkParams
+        );
     }
 
     /**
@@ -116,7 +143,15 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         reRecord.remainingNumber -= 1;
         reClaimed[reId][userId] = true;
         _transferToUser(reRecord.tokenType, reRecord.tokenAddress, userAddr, amount);
-        emit REClaimEvent(reRecord.id, userAddr, userId, amount, reRecord.number - reRecord.remainingNumber, (uint64)(block.timestamp), reRecord.tokenAddress);
+        emit REClaimEvent(
+            reRecord.id,
+            userAddr,
+            userId,
+            amount,
+            reRecord.number - reRecord.remainingNumber,
+            (uint64)(block.timestamp),
+            reRecord.tokenAddress
+        );
     }
 
     function reSenderWithdraw(bytes32 reId) external {
@@ -139,7 +174,11 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
      * @param att Attestation to prove that the red envelope conditions are met.
      * @return User id and address in Attestation. User id cannot be an empty string.
      */
-    function reCheckClaim(Attestation calldata att, bytes memory checkParams) public view returns (string memory, address) {
+    function reCheckClaim(Attestation calldata att, bytes memory checkParams)
+        public
+        view
+        returns (string memory, address)
+    {
         require(att.recipient != address(0), "to addr zero");
         primusZKTLS.verifyAttestation(att);
         (uint32 checkType, string memory params) = abi.decode(checkParams, (uint32, string));
@@ -151,12 +190,19 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         }
     }
 
-    function checkXFollowing(Attestation calldata att, string memory params) public pure returns (string memory, address) {
+    function checkXFollowing(Attestation calldata att, string memory params)
+        public
+        pure
+        returns (string memory, address)
+    {
         require(att.reponseResolve.length == 2, "response length error");
         string memory baseUrl = att.request.url.extractStr("?");
         require(baseUrl.startsWith("https://x.com/i/api/graphql"), "att url error");
         require(baseUrl.suffixWith("UserByScreenName"), "att suffix url error");
-        require(att.reponseResolve[0].parsePath.equals("$.data.user.result.relationship_perspectives.following"), "json path error");
+        require(
+            att.reponseResolve[0].parsePath.equals("$.data.user.result.relationship_perspectives.following"),
+            "json path error"
+        );
         require(att.reponseResolve[1].parsePath.equals("$.data.user.result.core.screen_name"), "json path error");
 
         string[] memory keys = new string[](5);
@@ -176,10 +222,13 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         string memory keyName1 = values[4];
         require(url1.startsWith("https://api.x.com/1.1/account/settings.json"), "att url error");
         require(reponseResolve1.equals("$.screen_name"), "json path error");
-        require(!keyName1.equals(att.reponseResolve[0].keyName) && !keyName1.equals(att.reponseResolve[1].keyName), "username key error");
+        require(
+            !keyName1.equals(att.reponseResolve[0].keyName) && !keyName1.equals(att.reponseResolve[1].keyName),
+            "username key error"
+        );
 
         string[] memory strs = att.attConditions.split("},{");
-        for (uint i=0; i<strs.length; i++) {
+        for (uint256 i = 0; i < strs.length; i++) {
             string[] memory keysConditions = new string[](3);
             keysConditions[0] = "op";
             keysConditions[1] = "field";
@@ -189,7 +238,9 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
                 require(valuesConditions[2].equals("true") && valuesConditions[0].equals("STREQ"), "following error");
             }
             if (valuesConditions[1].equals("$.data.user.result.core.screen_name")) {
-                require(valuesConditions[2].equals(params) && valuesConditions[0].equals("STREQ"), "following name error");
+                require(
+                    valuesConditions[2].equals(params) && valuesConditions[0].equals("STREQ"), "following name error"
+                );
             }
             if (valuesConditions[1].equals("$.screen_name")) {
                 require(valuesConditions[0].equals("REVEAL_STRING"), "name op error");
@@ -202,13 +253,19 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
     }
 
     function checkAccount(Attestation calldata att, string memory params) public pure returns (string memory, address) {
-        require(params.equals("tiktok") || params.equals("x") || params.equals("google account") || params.equals("xiaohongshu"), "error source");
+        require(
+            params.equals("tiktok") || params.equals("x") || params.equals("google account")
+                || params.equals("xiaohongshu"),
+            "error source"
+        );
         string memory urlCheck = att.additionParams.extractValue("requests[1].url");
         require(urlCheck.equals(""), "too more url");
         require(att.reponseResolve.length == 1, "account response length error");
         string memory userName;
         if (params.equals("tiktok")) {
-            require(att.request.url.startsWith("https://www.tiktok.com/passport/web/account/info/"), "tiktok att url error");
+            require(
+                att.request.url.startsWith("https://www.tiktok.com/passport/web/account/info/"), "tiktok att url error"
+            );
             require(att.reponseResolve[0].parsePath.equals("$.data.username"), "tiktok json path error");
             userName = att.data.extractValue(att.reponseResolve[0].keyName);
         } else if (params.equals("x")) {
@@ -220,7 +277,10 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
             require(att.reponseResolve[0].parsePath.equals("$[2]"), "google json path error");
             userName = att.data.extractValue(att.reponseResolve[0].keyName);
         } else {
-            require(att.request.url.startsWith("https://edith.xiaohongshu.com/api/sns/web/v2/user/me"), "xiaohongshu att url error");
+            require(
+                att.request.url.startsWith("https://edith.xiaohongshu.com/api/sns/web/v2/user/me"),
+                "xiaohongshu att url error"
+            );
             require(att.reponseResolve[0].parsePath.equals("$.data.red_id"), "xiaohongshu json path error");
             userName = att.data.extractValue(att.reponseResolve[0].keyName);
         }
@@ -244,7 +304,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
     /**
      * @dev Set the fee recipient address.
      * @param feeRecipient_ The fee recipient address.
-    */
+     */
     function setFeeRecipient(address feeRecipient_) external onlyOwner {
         feeRecipient = feeRecipient_;
     }
@@ -252,10 +312,11 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
     /**
      * @dev set the withdraw delay.
      * @param delay The withdraw delay Unit should be days.
-    */
+     */
     function setWithdrawDelay(uint256 delay) external onlyOwner {
         withdrawDelay = delay;
     }
+
     /**
      *  @dev set IPrimusZKTLS contract instance
      *  @param primusZKTLS_ The address of the IPrimusZKTLS contract
@@ -278,7 +339,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
      * @param from The token sender.
      * @param token The send token.
      * @param amount The token amount.
-    */
+     */
     function _transferFromUser(address from, TipToken memory token, uint256 amount) internal {
         if (token.tokenType == ERC20_TYPE) {
             IERC20 reToken = IERC20(token.tokenAddress);
@@ -321,7 +382,11 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         if (upperBound <= minAmount) {
             return 0;
         }
-        uint256 seed = uint(keccak256(abi.encodePacked(block.timestamp, msg.sender, block.prevrandao, blockhash(block.number - 1), reId)));
+        uint256 seed = uint256(
+            keccak256(
+                abi.encodePacked(block.timestamp, msg.sender, block.prevrandao, blockhash(block.number - 1), reId)
+            )
+        );
         amount = seed % (upperBound - minAmount + 1) + minAmount;
         return amount;
     }
@@ -329,5 +394,4 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
     function _generateReId(uint256 idCnt) internal view returns (bytes32) {
         return keccak256(abi.encodePacked(block.chainid, idCnt));
     }
-
 }

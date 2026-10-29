@@ -402,10 +402,7 @@ contract PrimusFHETip is Initializable, OwnableUpgradeable, ReentrancyGuardUpgra
         Spf.SpfParameter memory amountId = updateTipAmount(token, recipient.amountId);
 
         EncryptedTipRecord memory tipRecord = EncryptedTipRecord({
-            amountId: amountId,
-            tipToken: token,
-            tipper: msg.sender,
-            timestamp: uint64(block.timestamp)
+            amountId: amountId, tipToken: token, tipper: msg.sender, timestamp: uint64(block.timestamp)
         });
         tipRecords[recipient.idSource][recipient.id].push(tipRecord);
 

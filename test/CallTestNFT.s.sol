@@ -1,4 +1,3 @@
-
 // script/Deploy.s.sol
 pragma solidity ^0.8.20;
 
@@ -14,8 +13,11 @@ contract DeployScript is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         PrimusTestNFT nftToken = PrimusTestNFT(address(0xDF53423C5475168caAD96aDf047AC34449cd5E17));
-        for (uint i = 51; i < 61; i++) {
-            nftToken.safeMint(address(0x2B99d37183a3415C429901800fFBec7de5eE897e), "https://storage.googleapis.com/primus-online/others/primustestnft.json");
+        for (uint256 i = 51; i < 61; i++) {
+            nftToken.safeMint(
+                address(0x2B99d37183a3415C429901800fFBec7de5eE897e),
+                "https://storage.googleapis.com/primus-online/others/primustestnft.json"
+            );
         }
         console.log("nft owner:", nftToken.ownerOf(60));
 

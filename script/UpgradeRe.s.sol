@@ -6,8 +6,11 @@ import {PrimusRedEnvelope} from "../src/PrimusRedEnvelope.sol";
 import "forge-std/Test.sol";
 
 // script/Upgrade.s.sol
-import {ProxyAdmin} from  "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
-import {TransparentUpgradeableProxy, ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import {
+    TransparentUpgradeableProxy,
+    ITransparentUpgradeableProxy
+} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 contract UpgradeScript is Script {
     function run() external {
@@ -40,7 +43,6 @@ contract UpgradeScript is Script {
         // base mainnet
         // address proxyAdminAddr = address(0x5373eDbf1eE8F725c2848Ee7A6CEe763c12faC18);
         // address proxyAddr = address(0x50bd377EB8D4236Bb587AB3FB1eeafd888AEeC58);
-
 
         // 3. Call the upgrade method of ProxyAdmin
         ProxyAdmin proxyAdmin = ProxyAdmin(proxyAdminAddr);

@@ -10,11 +10,11 @@ import "./PrimusTestNFT.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 import {
-Attestation as PrimusAttestation,
-AttNetworkRequest,
-AttNetworkResponseResolve,
-Attestor,
-IPrimusZKTLS
+    Attestation as PrimusAttestation,
+    AttNetworkRequest,
+    AttNetworkResponseResolve,
+    Attestor,
+    IPrimusZKTLS
 } from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
 import {PrimusRedEnvelope} from "../src/PrimusRedEnvelope.sol";
 
@@ -29,7 +29,6 @@ bytes32 constant claimSig = keccak256("REClaimEvent(bytes32,address,string,uint2
 bytes32 constant withdrawSig = keccak256("RESWithdrawEvent(bytes32,address,uint256,uint32,uint64)");
 
 contract ERC20Mock is IERC20 {
-
     mapping(address => uint256) public balanceOf;
     mapping(address => mapping(address => uint256)) public allowance;
 
@@ -48,11 +47,7 @@ contract ERC20Mock is IERC20 {
         return true;
     }
 
-    function transferFrom(
-        address from,
-        address to,
-        uint256 amount
-    ) external returns (bool) {
+    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
         allowance[from][msg.sender] -= amount;
         balanceOf[from] -= amount;
         balanceOf[to] += amount;
@@ -89,7 +84,6 @@ contract PrimusRedEnvelopeTest is Test {
         vm.stopPrank();
     }
 
-
     function testReSend() public {
         vm.startPrank(tipper);
         vm.recordLogs();
@@ -111,7 +105,15 @@ contract PrimusRedEnvelopeTest is Test {
             Vm.Log memory log = logs[i];
             if (log.topics[0] == eventSig) {
                 bytes32 id = log.topics[1];
-                (address reSender, uint32 tokenType, address tokenAddress, uint256 amount, uint32 reType, uint32 number, uint64 timestamp) = abi.decode(log.data, (address, uint32, address, uint256, uint32, uint32, uint64));
+                (
+                    address reSender,
+                    uint32 tokenType,
+                    address tokenAddress,
+                    uint256 amount,
+                    uint32 reType,
+                    uint32 number,
+                    uint64 timestamp
+                ) = abi.decode(log.data, (address, uint32, address, uint256, uint32, uint32, uint64));
 
                 console.log("id=", uintToString(uint256(id)));
                 assertEq(amount, 100);
@@ -196,7 +198,6 @@ contract PrimusRedEnvelopeTest is Test {
         assertEq(tipper.balance, balanceBefore);
     }
 
-
     function testClaimAndReWithdraw() public {
         vm.startPrank(tipper);
         vm.recordLogs();
@@ -231,7 +232,8 @@ contract PrimusRedEnvelopeTest is Test {
         assertEq(claimLogs[0].topics[0], claimSig);
         console.log("after claim:", attestation.recipient.balance);
         assertNotEq(attestation.recipient.balance, 0);
-        (address recipient, string memory userId, uint256 claimAmount, uint32 reIndex, uint64 timestamp) = abi.decode(claimLogs[0].data, (address, string, uint256, uint32, uint64));
+        (address recipient, string memory userId, uint256 claimAmount, uint32 reIndex, uint64 timestamp) =
+            abi.decode(claimLogs[0].data, (address, string, uint256, uint32, uint64));
         console.log("recipient=", recipient);
         console.log("claim reIndex=", reIndex);
         console.log("claimAmount claimAmount=", claimAmount);
@@ -271,33 +273,21 @@ contract PrimusRedEnvelopeTest is Test {
     //-----------------help function----------------
 
     // Mock valid attestation
-    function mockAttestation() private pure returns
-    (
-        Attestation memory att,
-        string memory idSource,
-        string memory id
-    ) {
+    function mockAttestation() private pure returns (Attestation memory att, string memory idSource, string memory id) {
         idSource = "x";
         id = "goose_eggsss";
         address receiptAddr = address(0xB12a1f7035FdCBB4cC5Fa102C01346BD45439Adf);
         AttNetworkResponseResolve[] memory response = new AttNetworkResponseResolve[](2);
         response[0] = AttNetworkResponseResolve({
-            keyName: "following",
-            parseType: "",
-            parsePath: "$.data.user.result.relationship_perspectives.following"
+            keyName: "following", parseType: "", parsePath: "$.data.user.result.relationship_perspectives.following"
         });
         response[1] = AttNetworkResponseResolve({
-            keyName: "following_screen_name",
-            parseType: "",
-            parsePath: "$.data.user.result.core.screen_name"
+            keyName: "following_screen_name", parseType: "", parsePath: "$.data.user.result.core.screen_name"
         });
 
         Attestor[] memory attesters = new Attestor[](1);
         address addr = stringToAddress("0xdb736b13e2f522dbe18b2015d0291e4b193d8ef6");
-        attesters[0] = Attestor({
-            attestorAddr: addr,
-            url: "https://primuslabs.xyz"
-        });
+        attesters[0] = Attestor({attestorAddr: addr, url: "https://primuslabs.xyz"});
 
         AttNetworkRequest memory request = AttNetworkRequest({
             url: "https://x.com/i/api/graphql/jUKA--0QkqGIFhmfRZdWrQ/UserByScreenName?variables=%7B%22screen_name%22%3A%22primus_labs%22%7D&features=%7B%22responsive_web_grok_bio_auto_translation_is_enabled%22%3Afalse%2C%22hidden_profile_subscriptions_enabled%22%3Atrue%2C%22payments_enabled%22%3Afalse%2C%22profile_label_improvements_pcf_label_in_post_enabled%22%3Atrue%2C%22rweb_tipjar_consumption_enabled%22%3Atrue%2C%22verified_phone_label_enabled%22%3Afalse%2C%22subscriptions_verification_info_is_identity_verified_enabled%22%3Atrue%2C%22subscriptions_verification_info_verified_since_enabled%22%3Atrue%2C%22highlights_tweets_tab_ui_enabled%22%3Atrue%2C%22responsive_web_twitter_article_notes_tab_enabled%22%3Atrue%2C%22subscriptions_feature_can_gift_premium%22%3Atrue%2C%22creator_subscriptions_tweet_preview_api_enabled%22%3Atrue%2C%22responsive_web_graphql_skip_user_profile_image_extensions_enabled%22%3Afalse%2C%22responsive_web_graphql_timeline_navigation_enabled%22%3Atrue%7D&fieldToggles=%7B%22withAuxiliaryUserLabels%22%3Atrue%7D",
@@ -307,7 +297,9 @@ contract PrimusRedEnvelopeTest is Test {
         });
 
         bytes[] memory sigBytes = new bytes[](1);
-        sigBytes[0] = bytes("0xcdbf87ec6772ee6c734d3463b875792f5e49be43b38f76e3eeb498f4d757db34512c90c8eb78b1993d120286a4d5baa87e5a5fae01e194fe363381067e3e36981c");
+        sigBytes[0] = bytes(
+            "0xcdbf87ec6772ee6c734d3463b875792f5e49be43b38f76e3eeb498f4d757db34512c90c8eb78b1993d120286a4d5baa87e5a5fae01e194fe363381067e3e36981c"
+        );
         att = Attestation({
             recipient: receiptAddr,
             request: request,
@@ -351,5 +343,4 @@ contract PrimusRedEnvelopeTest is Test {
         }
         return string(buffer);
     }
-
 }

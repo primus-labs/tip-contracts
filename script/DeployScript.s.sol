@@ -1,4 +1,3 @@
-
 // script/Deploy.s.sol
 pragma solidity ^0.8.20;
 
@@ -31,11 +30,8 @@ contract DeployScript is Script {
         );
 
         // 5. Deploy TransparentUpgradeableProxy
-        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
-            address(logic),
-            deployerAddress,
-            initializeData
-        );
+        TransparentUpgradeableProxy proxy =
+            new TransparentUpgradeableProxy(address(logic), deployerAddress, initializeData);
 
         // 6. Log contract addresses
         console.log("Logic Contract Address: ", address(logic));
