@@ -4,8 +4,18 @@ pragma solidity ^0.8.20;
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import { IPrimusZKTLS, Attestation } from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
-import {TipToken, TipRecipientInfo, TipRecipient, TipRecord, IdSource, TipWithdrawInfo, ERC20_TYPE, NATIVE_TYPE, ERC721_TYPE} from "./types/Common.sol";
+import {IPrimusZKTLS, Attestation} from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
+import {
+    TipToken,
+    TipRecipientInfo,
+    TipRecipient,
+    TipRecord,
+    IdSource,
+    TipWithdrawInfo,
+    ERC20_TYPE,
+    NATIVE_TYPE,
+    ERC721_TYPE
+} from "./types/Common.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "./utils/StringUtils.sol";
 import "./utils/JsonParser.sol";
@@ -18,9 +28,39 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using StringUtils for string;
     using JsonParser for string;
 
-    event TipEvent(string idSource, string id, address tipper, address tokenAddr, uint256 amount, uint64 tipTime, uint32 tokenType, uint256[] nftIds);
-    event ClaimEvent(address indexed recipient, uint64 claimTime, string idSource, string id, address tipper, address tokenAddr, uint256 amount, uint64 tipTime, uint32 tokenType, uint256[] nftIds);
-    event WithdrawEvent(uint64 withdrawTime, string idSource, string id, address tipper, address tokenAddr, uint256 amount, uint64 tipTime, uint32 tokenType, uint256[] nftIds);
+    event TipEvent(
+        string idSource,
+        string id,
+        address tipper,
+        address tokenAddr,
+        uint256 amount,
+        uint64 tipTime,
+        uint32 tokenType,
+        uint256[] nftIds
+    );
+    event ClaimEvent(
+        address indexed recipient,
+        uint64 claimTime,
+        string idSource,
+        string id,
+        address tipper,
+        address tokenAddr,
+        uint256 amount,
+        uint64 tipTime,
+        uint32 tokenType,
+        uint256[] nftIds
+    );
+    event WithdrawEvent(
+        uint64 withdrawTime,
+        string idSource,
+        string id,
+        address tipper,
+        address tokenAddr,
+        uint256 amount,
+        uint64 tipTime,
+        uint32 tokenType,
+        uint256[] nftIds
+    );
 
     // IPrimusZKTLS contract
     IPrimusZKTLS public primusZKTLS;
@@ -30,7 +70,7 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     address public feeRecipient;
     // withdraw delay
     uint256 public withdrawDelay;
-    // id attestation source cache 
+    // id attestation source cache
     mapping(string => IdSource) public idSourceCache;
     // Tip records by idSource and id
     mapping(string => mapping(string => TipRecord[])) private _tipRecords;
@@ -43,12 +83,10 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
      * @param feeRecipient_ The fee recipient address.
      * @param claimFee_ The claim fee.
      */
-    function initialize(
-        address owner,
-        IPrimusZKTLS primusZKTLS_,
-        address feeRecipient_,
-        uint256 claimFee_
-    ) public initializer {
+    function initialize(address owner, IPrimusZKTLS primusZKTLS_, address feeRecipient_, uint256 claimFee_)
+        public
+        initializer
+    {
         __Ownable_init(owner);
         primusZKTLS = primusZKTLS_;
         feeRecipient = feeRecipient_;
@@ -56,7 +94,6 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         withdrawDelay = 30 days;
     }
 
-    
     // ========== external functions ==========
     /**
      * @dev Tipper tip the token to the recipient.
@@ -65,8 +102,11 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
      * @param token The tip token.
      * @param recipient The recipient informations.
      */
-    function tip(TipToken memory token, TipRecipientInfo calldata recipient) external payable nonReentrant{
-        require(token.tokenType == ERC20_TYPE || token.tokenType == NATIVE_TYPE || token.tokenType == ERC721_TYPE, "error token type");
+    function tip(TipToken memory token, TipRecipientInfo calldata recipient) external payable nonReentrant {
+        require(
+            token.tokenType == ERC20_TYPE || token.tokenType == NATIVE_TYPE || token.tokenType == ERC721_TYPE,
+            "error token type"
+        );
         require(!recipient.id.equals(""), "id is empty");
         require(bytes(idSourceCache[recipient.idSource].url).length > 0, "id source not exist");
 
@@ -84,9 +124,9 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         _transferFromUser(msg.sender, token, recipient.amount, token.tokenType, recipient.nftIds);
 
         if (token.tokenType == NATIVE_TYPE && msg.value > recipient.amount) {
-            payable(msg.sender).transfer(msg.value - recipient.amount);
+            _sendNative(msg.sender, msg.value - recipient.amount);
         }
-        
+
         TipRecord memory tipRecord = TipRecord({
             amount: recipient.amount,
             nftIds: recipient.nftIds,
@@ -95,7 +135,16 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
             timestamp: (uint64)(block.timestamp)
         });
         _tipRecords[recipient.idSource][recipient.id].push(tipRecord);
-        emit TipEvent(recipient.idSource, recipient.id, msg.sender, token.tokenAddress, recipient.amount, (uint64)(block.timestamp), token.tokenType, recipient.nftIds);
+        emit TipEvent(
+            recipient.idSource,
+            recipient.id,
+            msg.sender,
+            token.tokenAddress,
+            recipient.amount,
+            (uint64)(block.timestamp),
+            token.tokenType,
+            recipient.nftIds
+        );
     }
 
     /**
@@ -106,7 +155,10 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
      * @param recipients The recipients informations.
      */
     function tipBatch(TipToken memory token, TipRecipientInfo[] calldata recipients) external payable nonReentrant {
-        require(token.tokenType == ERC20_TYPE || token.tokenType == NATIVE_TYPE || token.tokenType == ERC721_TYPE, "error token type");
+        require(
+            token.tokenType == ERC20_TYPE || token.tokenType == NATIVE_TYPE || token.tokenType == ERC721_TYPE,
+            "error token type"
+        );
         if (token.tokenType == ERC20_TYPE) {
             require(token.tokenAddress != address(0), "error token addr");
         } else if (token.tokenType == NATIVE_TYPE) {
@@ -133,7 +185,7 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
 
         if (token.tokenType == NATIVE_TYPE && msg.value > totalAmount) {
             uint256 rebate = msg.value - totalAmount;
-            payable(msg.sender).transfer(rebate);
+            _sendNative(msg.sender, rebate);
         }
 
         for (uint256 i = 0; i < recipients.length; i++) {
@@ -145,7 +197,16 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
                 timestamp: (uint64)(block.timestamp)
             });
             _tipRecords[recipients[i].idSource][recipients[i].id].push(tipRecord);
-            emit TipEvent(recipients[i].idSource, recipients[i].id, msg.sender, token.tokenAddress, recipients[i].amount, (uint64)(block.timestamp), token.tokenType, recipients[i].nftIds);
+            emit TipEvent(
+                recipients[i].idSource,
+                recipients[i].id,
+                msg.sender,
+                token.tokenAddress,
+                recipients[i].amount,
+                (uint64)(block.timestamp),
+                token.tokenType,
+                recipients[i].nftIds
+            );
         }
     }
 
@@ -159,7 +220,7 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         // charge fee by Source
         _chargeFee(amount);
         if (msg.value > amount) {
-            payable(msg.sender).transfer(msg.value - amount);
+            _sendNative(msg.sender, msg.value - amount);
         }
     }
 
@@ -180,7 +241,7 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         _chargeFee(totalAmount);
 
         if (msg.value > totalAmount) {
-            payable(msg.sender).transfer(msg.value - totalAmount);
+            _sendNative(msg.sender, msg.value - totalAmount);
         }
     }
 
@@ -194,14 +255,27 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
             uint256 j = 0;
             while (j < records.length) {
                 TipRecord memory tipRecord = records[j];
-                if (msg.sender == tipRecord.tipper && tipRecord.timestamp == tipRecipients[i].tipTimestamp && isExpired(tipRecord.timestamp)) {
-                     // Remove records
+                if (
+                    msg.sender == tipRecord.tipper && tipRecord.timestamp == tipRecipients[i].tipTimestamp
+                        && isExpired(tipRecord.timestamp)
+                ) {
+                    // Remove records
                     records[j] = records[records.length - 1];
                     records.pop();
 
                     _transferToken(tipRecord.tipper, tipRecord.tipToken, tipRecord.amount, tipRecord.nftIds);
                     isWithdrawn = true;
-                    emit WithdrawEvent((uint64)(block.timestamp), tipRecipients[i].idSource, tipRecipients[i].id, tipRecord.tipper, tipRecord.tipToken.tokenAddress, tipRecord.amount, tipRecord.timestamp, tipRecord.tipToken.tokenType, tipRecord.nftIds);
+                    emit WithdrawEvent(
+                        (uint64)(block.timestamp),
+                        tipRecipients[i].idSource,
+                        tipRecipients[i].id,
+                        tipRecord.tipper,
+                        tipRecord.tipToken.tokenAddress,
+                        tipRecord.amount,
+                        tipRecord.timestamp,
+                        tipRecord.tipToken.tokenType,
+                        tipRecord.nftIds
+                    );
                 } else {
                     j++;
                 }
@@ -221,7 +295,11 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         return _tipRecords[tipRecipient.idSource][tipRecipient.id].length;
     }
 
-    function getTipRecordsPaginated(TipRecipient calldata tipRecipient, uint256 offset, uint256 limit) external view returns (TipRecord[] memory) {
+    function getTipRecordsPaginated(TipRecipient calldata tipRecipient, uint256 offset, uint256 limit)
+        external
+        view
+        returns (TipRecord[] memory)
+    {
         TipRecord[] storage allRecords = _tipRecords[tipRecipient.idSource][tipRecipient.id];
         uint256 total = allRecords.length;
 
@@ -255,25 +333,24 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         return amount;
     }
 
-
     // ========== external onlyOwner functions ==========
     /**
      * @dev Add the id attestation source in batch.
-    */
-    function addBatchIdSource(string[] memory sourceName_, string[] memory url_, string[] memory jsonPath_) external onlyOwner {
+     */
+    function addBatchIdSource(string[] memory sourceName_, string[] memory url_, string[] memory jsonPath_)
+        external
+        onlyOwner
+    {
         require(sourceName_.length == url_.length && url_.length == jsonPath_.length, "length not match");
         for (uint256 i = 0; i < sourceName_.length; i++) {
-            idSourceCache[sourceName_[i]] = IdSource({
-                url: url_[i],
-                jsonPath: jsonPath_[i]
-            });
+            idSourceCache[sourceName_[i]] = IdSource({url: url_[i], jsonPath: jsonPath_[i]});
         }
     }
 
-     /**
+    /**
      * @dev Set the fee recipient address.
      * @param feeRecipient_ The fee recipient address.
-    */
+     */
     function setFeeRecipient(address feeRecipient_) external onlyOwner {
         feeRecipient = feeRecipient_;
     }
@@ -281,10 +358,11 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     /**
      * @dev set the withdraw delay.
      * @param delay The withdraw delay Unit should be days.
-    */
+     */
     function setWithdrawDelay(uint256 delay) external onlyOwner {
         withdrawDelay = delay;
     }
+
     /**
      *  @dev set IPrimusZKTLS contract instance
      *  @param primusZKTLS_ The address of the IPrimusZKTLS contract
@@ -301,8 +379,7 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         claimFee = claimFee_;
     }
 
-
-     // ========== internal functions ==========
+    // ========== internal functions ==========
 
     /**
      * @dev Check attestaion.
@@ -331,7 +408,7 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         return id;
     }
 
-     /**
+    /**
      * @dev Recipient claims the tip tokens by the id.
      * @param idSource The id source of the recipient.
      * @param att The attestation of the recipient.
@@ -345,7 +422,18 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         for (uint256 i = 0; i < tipRecords.length; i++) {
             TipRecord memory record = tipRecords[i];
             _transferToken(att.recipient, record.tipToken, record.amount, record.nftIds);
-            emit ClaimEvent(att.recipient, (uint64)(block.timestamp), idSource, id, record.tipper, record.tipToken.tokenAddress, record.amount, record.timestamp, record.tipToken.tokenType, record.nftIds);
+            emit ClaimEvent(
+                att.recipient,
+                (uint64)(block.timestamp),
+                idSource,
+                id,
+                record.tipper,
+                record.tipToken.tokenAddress,
+                record.amount,
+                record.timestamp,
+                record.tipToken.tokenType,
+                record.nftIds
+            );
         }
         return tipRecords.length;
     }
@@ -355,8 +443,14 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
      * @param from The token sender.
      * @param token The tip token.
      * @param amount The token amount.
-    */
-    function _transferFromUser(address from, TipToken memory token, uint256 amount, uint32 tokenType, uint256[] memory nftIds) internal {
+     */
+    function _transferFromUser(
+        address from,
+        TipToken memory token,
+        uint256 amount,
+        uint32 tokenType,
+        uint256[] memory nftIds
+    ) internal {
         if (tokenType == ERC20_TYPE) {
             IERC20 tipToken = IERC20(token.tokenAddress);
             bool ret = tipToken.transferFrom(from, address(this), amount);
@@ -376,13 +470,13 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
      * @param to The token recipient.
      * @param token The tip token.
      * @param amount The token amount.
-    */
+     */
     function _transferToken(address to, TipToken memory token, uint256 amount, uint256[] memory nftIds) internal {
         if (token.tokenType == ERC20_TYPE) {
             IERC20 tipToken = IERC20(token.tokenAddress);
             require(tipToken.transfer(to, amount), "Transfer failed");
         } else if (token.tokenType == NATIVE_TYPE) {
-            payable(to).transfer(amount);
+            _sendNative(to, amount);
         } else {
             IERC721 tipToken = IERC721(token.tokenAddress);
             for (uint256 i = 0; i < nftIds.length; i++) {
@@ -392,9 +486,18 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     }
 
     /**
+     * @dev Send native tokens to EOAs and smart accounts. Callers must retain
+     * their nonReentrant guard; a failed payment reverts all state changes.
+     */
+    function _sendNative(address to, uint256 amount) internal {
+        (bool sent,) = payable(to).call{value: amount}("");
+        require(sent, "Native transfer failed");
+    }
+
+    /**
      * @dev Charge the fee from the user.
      * @param fee The fee amount.
-    */
+     */
     function _chargeFee(uint256 fee) internal {
         if (fee > 0) {
             // payable(feeRecipient).transfer(fee);
@@ -407,9 +510,8 @@ contract PrimusTip is OwnableUpgradeable, ReentrancyGuardUpgradeable {
      * @dev Check if the tip is expired.
      * @param timestamp The timestamp of the tip.
      * @return True if the tip is expired, otherwise false.
-    */
+     */
     function isExpired(uint256 timestamp) internal view returns (bool) {
         return block.timestamp >= timestamp + withdrawDelay;
     }
-
 }

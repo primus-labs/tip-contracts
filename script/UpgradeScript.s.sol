@@ -1,37 +1,37 @@
-// script/Upgrade.s.sol
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Script} from "forge-std/Script.sol";
+import {Script, console} from "forge-std/Script.sol";
 import {PrimusTip} from "../src/PrimusTip.sol";
-import "forge-std/Test.sol";
-
-// script/Upgrade.s.sol
-import {ProxyAdmin} from  "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
-import {TransparentUpgradeableProxy, ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 contract UpgradeScript is Script {
+    bytes32 internal constant ADMIN_SLOT = bytes32(uint256(keccak256("eip1967.proxy.admin")) - 1);
+    bytes32 internal constant IMPLEMENTATION_SLOT = bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1);
+
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        vm.startBroadcast(deployerPrivateKey);
-
-        // 1. Deploy the new logic contract
-        PrimusTip newLogic = new PrimusTip();
-
-        // 2. Retrieve the ProxyAdmin address and Proxy contract address
-        // bsc mainnet
-        // address proxyAdminAddr = address(0xb910D329B9d3ecEdd636DD99aDc82d5a6B270AF9); // Replace with the actual ProxyAdmin address
-        // address proxyAddr = address(0x1fb86db904caF7c12100EA64024E5dfd7505E484);           // Replace with the actual Proxy address
-
-        // pharos
-        address proxyAdminAddr = address(0x9eC27C173bDfc7CF1C6B9cE550eD2A34F2868716);
-        address proxyAddr = address(0xD17512B7EC12880Bd94Eca9d774089fF89805F02);
-
-        // 3. Call the upgrade method of ProxyAdmin
+        address proxyAddr = vm.envAddress("TIP_PROXY_ADDRESS");
+        require(proxyAddr.code.length > 0, "TIP_PROXY_ADDRESS has no code");
+        address proxyAdminAddr = address(uint160(uint256(vm.load(proxyAddr, ADMIN_SLOT))));
+        require(proxyAdminAddr.code.length > 0, "ProxyAdmin has no code");
         ProxyAdmin proxyAdmin = ProxyAdmin(proxyAdminAddr);
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        require(proxyAdmin.owner() == vm.addr(deployerPrivateKey), "PRIVATE_KEY is not ProxyAdmin owner");
+
+        console.log("Chain ID:", block.chainid);
+        console.log("Tip proxy:", proxyAddr);
+        console.log("ProxyAdmin:", proxyAdminAddr);
+
+        vm.startBroadcast(deployerPrivateKey);
+        PrimusTip newLogic = new PrimusTip();
         proxyAdmin.upgradeAndCall(ITransparentUpgradeableProxy(proxyAddr), address(newLogic), "");
-
-        console.log("Upgraded Proxy to New Logic Address: ", address(newLogic));
-
         vm.stopBroadcast();
+
+        require(
+            address(uint160(uint256(vm.load(proxyAddr, IMPLEMENTATION_SLOT)))) == address(newLogic),
+            "Implementation was not updated"
+        );
+        console.log("Upgraded implementation:", address(newLogic));
     }
 }
