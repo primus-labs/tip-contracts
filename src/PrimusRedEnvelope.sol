@@ -6,10 +6,11 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {IPrimusZKTLS, Attestation} from "@primuslabs/zktls-contracts/src/IPrimusZKTLS.sol";
 import {TipToken, RESendParam, RERecord, ERC20_TYPE, NATIVE_TYPE} from "./types/Common.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {StringUtils} from "./utils/StringUtils.sol";
 import {JsonParser} from "./utils/JsonParser.sol";
 
-contract PrimusRedEnvelope is OwnableUpgradeable {
+contract PrimusRedEnvelope is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using StringUtils for string;
     using JsonParser for string;
 
@@ -68,6 +69,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         initializer
     {
         __Ownable_init(owner);
+        __ReentrancyGuard_init();
         primusZKTLS = primusVerifier_;
         feeRecipient = feeRecipient_;
         claimFee = claimFee_;
@@ -81,7 +83,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
      * @param token The send token of the red envelope.
      * @param sendParam The red envelope informations.
      */
-    function reSend(TipToken memory token, RESendParam calldata sendParam) external payable {
+    function reSend(TipToken memory token, RESendParam calldata sendParam) external payable nonReentrant {
         require(token.tokenType == ERC20_TYPE || token.tokenType == NATIVE_TYPE, "error token type");
         if (token.tokenType == ERC20_TYPE) {
             require(token.tokenAddress != address(0), "error token addr");
@@ -127,7 +129,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
      * @param reId The red envelope id.
      * @param att Attestation to prove that the red envelope conditions are met.
      */
-    function reClaim(bytes32 reId, Attestation calldata att) external payable {
+    function reClaim(bytes32 reId, Attestation calldata att) external payable nonReentrant {
         RERecord storage reRecord = reRecords[reId];
         require(reRecord.id != bytes32(0), "no reId");
         require(reRecord.remainingNumber > 0, "All claimed");
@@ -156,7 +158,7 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
         );
     }
 
-    function reSenderWithdraw(bytes32 reId) external {
+    function reSenderWithdraw(bytes32 reId) external nonReentrant {
         RERecord storage reRecord = reRecords[reId];
         require(reRecord.id != bytes32(0), "no reId");
         require(reRecord.remainingAmount > 0, "no fund");
@@ -361,8 +363,17 @@ contract PrimusRedEnvelope is OwnableUpgradeable {
             IERC20 sendToken = IERC20(tokenAddress);
             require(sendToken.transfer(userAddr, amount), "Transfer failed");
         } else if (tokenType == NATIVE_TYPE) {
-            payable(userAddr).transfer(amount);
+            _sendNative(userAddr, amount);
         }
+    }
+
+    /**
+     * @dev Send native tokens to EOAs and smart accounts. Callers must retain
+     * their nonReentrant guard; a failed payment reverts all state changes.
+     */
+    function _sendNative(address to, uint256 amount) internal {
+        (bool sent,) = payable(to).call{value: amount}("");
+        require(sent, "Native transfer failed");
     }
 
     function _getReAmount(bytes32 reId) internal view returns (uint256) {
